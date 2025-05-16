@@ -1,0 +1,4 @@
+# Ignore energy and climate data files
+RDS_Day.csv
+EIDW_HDD_15.5C.csv
+EIDW_CDD_15.5C.csv
