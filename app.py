@@ -11,6 +11,10 @@ def format_delta(val):
     else:
         return f"{val:.1f}%", "gray"
 
+# Initialize session state for file upload status
+if 'files_uploaded' not in st.session_state:
+    st.session_state.files_uploaded = False
+
 st.set_page_config(page_title="Energy Baseline Dashboard", layout="wide")
 
 st.title("📊 Energy Baseline Dashboard – RDS Site")
@@ -19,6 +23,14 @@ st.title("📊 Energy Baseline Dashboard – RDS Site")
 with st.sidebar:
     st.header("⚙️ Settings")
     
+    # Year Selection Section (at top)
+    st.subheader("📅 Year Selection")
+    col1, col2 = st.columns(2)
+    with col1:
+        baseline_year = st.selectbox("Baseline Year", [2023, 2024], key="baseline")
+    with col2:
+        comparison_year = st.selectbox("Comparison Year", [2024, 2025], key="comparison")
+    
     # File Upload Section
     st.subheader("📂 Required Files")
     files = {
@@ -26,14 +38,6 @@ with st.sidebar:
         "HDD Data": st.file_uploader("HDD Data", type=["csv"], help="Upload Heating Degree Days data"),
         "CDD Data": st.file_uploader("CDD Data", type=["csv"], help="Upload Cooling Degree Days data")
     }
-    
-    # Year Selection Section
-    st.subheader("📅 Year Selection")
-    col1, col2 = st.columns(2)
-    with col1:
-        baseline_year = st.selectbox("Baseline Year", [2023, 2024], key="baseline")
-    with col2:
-        comparison_year = st.selectbox("Comparison Year", [2024, 2025], key="comparison")
 
 if all(files.values()):
     try:
@@ -48,7 +52,6 @@ if all(files.values()):
         tab1, tab2, tab3 = st.tabs(["📋 General Summary", "⚡ Electricity Analysis", "🔥 Gas Analysis"])
 
         with tab1:
-
             # Get the model predictions for comparison
             gas_summary = evaluate_meter_models(gas_df, climate_col="HDD", train_year=baseline_year, test_year=comparison_year)
             elec_summary = evaluate_meter_models(elec_df, climate_col="CDD", train_year=baseline_year, test_year=comparison_year)
@@ -92,7 +95,7 @@ if all(files.values()):
                 """, unsafe_allow_html=True)
 
             # Add a note about partial year comparison
-            st.info("ℹ️ The comparison above uses climate-normalized predictions to account for partial year data and weather variations. Green indicates energy savings, red indicates increased consumption.")
+            st.info("ℹ️ The comparison above uses climate-normalized predictions to account for partial year data and weather variations.")
 
             st.markdown("### 📘 Dashboard Guide")
             st.markdown("""
