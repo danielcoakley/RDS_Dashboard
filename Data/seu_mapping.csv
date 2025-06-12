@@ -1,0 +1,27 @@
+Meter,SEU_Category,Location,Input_kW,Output_kW
+GM01,AHU,Simmonscourt,306.0,252.0
+GM02,AHU,Simmonscourt,306.0,252.0
+GM03,AHU,Simmonscourt,517.0,466.0
+GM04,AHU,Simmonscourt,517.0,466.0
+GM05,AHU,Simmonscourt,306.0,280.0
+GM06,Boiler,Simmonscourt Restaurant,89.0,80.0
+GM07,Boiler,Simmonscourt Restaurant,89.0,80.0
+GM08,Boiler,Main Hall,659.0,594.0
+GM09,Boiler,Main Hall,659.0,594.0
+GM10,Boiler,Industries Hall,512.0,462.0
+GM11,Boiler,Industries Hall,512.0,462.0
+GM12,Boiler,Industries Hall,333.1,293.0
+GM13,Boiler,Hall 6,82.0,75.0
+GM14,Boiler,Hall 3,110.0,100.0
+GM15,Boiler,Hall 3,110.0,100.0
+GM16,Boiler,Shelbourne,768.0,
+GM17,Boiler,Shelbourne,768.0,
+GM18,Boiler,Concert Hall,110.0,107.0
+GM19,Boiler,Concert Hall,110.0,107.0
+GM20,Boiler,Concert Hall,110.0,107.0
+GM21,Boiler,Concert Hall,110.0,107.0
+GM22,Boiler,Concert Hall,110.0,107.0
+GM23,Boiler,Minerva Building,110.0,107.0
+GM24,Boiler,Minerva Building,110.0,107.0
+GM25,Water Heater,Kitchen,32.0,29.0
+GM26,Boiler,Tripple Bar,62.0,61.0

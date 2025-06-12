@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
@@ -73,6 +72,24 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
     elec_df.drop_duplicates(subset=['Meter', 'Date'], inplace=True)
     elec_df = elec_df.groupby(['Meter', 'Date'])['Consumption'].sum().reset_index()
     elec_df = elec_df.merge(cdd_clean, on='Date', how='left')
+
+    # Merge SEU metadata into both dataframes
+    try:
+        seu_mapping = pd.read_csv('seu_mapping.csv')
+        # Clean up meter names in SEU mapping to match energy data
+        seu_mapping['Meter'] = seu_mapping['Meter'].str.strip()
+        
+        # Merge with gas data
+        gas_df = gas_df.merge(seu_mapping, on='Meter', how='left')
+        
+        # Merge with electricity data
+        elec_df = elec_df.merge(seu_mapping, on='Meter', how='left')
+        
+        # Fill unknown categories
+        gas_df['SEU_Category'] = gas_df['SEU_Category'].fillna('Unknown')
+        elec_df['SEU_Category'] = elec_df['SEU_Category'].fillna('Unknown')
+    except Exception as e:
+        print(f"Warning: Could not load SEU mapping: {str(e)}")
 
     for df in [gas_df, elec_df]:
         df['Year'] = df['Date'].dt.year
