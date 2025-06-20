@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import preprocess_data, evaluate_meter_models, plot_monthly_comparison, add_percent_savings, style_summary_table
+import time
+
+print("Starting Energy Baseline Dashboard...")
 
 def format_delta(val):
     """Format the delta value with appropriate arrow and color."""
@@ -18,6 +21,9 @@ if 'files_uploaded' not in st.session_state:
     st.session_state.files_uploaded = False
 
 st.set_page_config(page_title="Energy Baseline Dashboard", layout="wide")
+
+with st.spinner('Loading the Energy Baseline Dashboard...'):
+    time.sleep(2)  # Simulate loading time, adjust as needed
 
 st.title("📊 Energy Baseline Dashboard – RDS Site")
 
@@ -141,192 +147,208 @@ Use this summary to quickly identify overall performance and then drill into eac
         with tab2:
             st.header("⚡ Electricity Model Evaluation")
             elec_summary = add_percent_savings(elec_summary)
+            
+            # Sort by actual consumption
+            elec_summary = elec_summary.sort_values('Actual', ascending=False)
+            # Add page numbers based on position in sorted list
+            elec_summary['Page'] = (np.arange(len(elec_summary)) // 8) + 1
+            
+            # Display the table with page numbers
             st.dataframe(style_summary_table(elec_summary), use_container_width=True)
 
             st.subheader("Monthly Actual vs Predicted – Electricity")
-            plot_monthly_comparison(elec_df, elec_summary, climate_col="CDD", train_year=baseline_year, test_year=comparison_year, streamlit_mode=True)
+            total_pages = (len(elec_summary) + 7) // 8
+            
+            # Create columns for page navigation
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                page = st.selectbox("Select Page", range(1, total_pages + 1), key="elec_page")
+            
+            start_idx = (page - 1) * 8
+            end_idx = min(start_idx + 8, len(elec_summary))
+            paginated_elec_summary = elec_summary.iloc[start_idx:end_idx]
+            
+            # Show which meters are being displayed
+            st.write(f"Showing meters {start_idx + 1} to {end_idx} of {len(elec_summary)}")
+            plot_monthly_comparison(elec_df, paginated_elec_summary, climate_col="CDD", train_year=baseline_year, test_year=comparison_year, streamlit_mode=True)
 
         with tab3:
             st.header("🔥 Gas Model Evaluation")
             gas_summary = add_percent_savings(gas_summary)
+            
+            # Sort by actual consumption
+            gas_summary = gas_summary.sort_values('Actual', ascending=False)
+            # Add page numbers based on position in sorted list
+            gas_summary['Page'] = (np.arange(len(gas_summary)) // 8) + 1
+            
+            # Display the table with page numbers
             st.dataframe(style_summary_table(gas_summary), use_container_width=True)
 
             st.subheader("Monthly Actual vs Predicted – Gas")
-            plot_monthly_comparison(gas_df, gas_summary, climate_col="HDD", train_year=baseline_year, test_year=comparison_year, streamlit_mode=True)
+            total_pages = (len(gas_summary) + 7) // 8
+            
+            # Create columns for page navigation
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                page = st.selectbox("Select Page", range(1, total_pages + 1), key="gas_page")
+            
+            start_idx = (page - 1) * 8
+            end_idx = min(start_idx + 8, len(gas_summary))
+            paginated_gas_summary = gas_summary.iloc[start_idx:end_idx]
+            
+            # Show which meters are being displayed
+            st.write(f"Showing meters {start_idx + 1} to {end_idx} of {len(gas_summary)}")
+            plot_monthly_comparison(gas_df, paginated_gas_summary, climate_col="HDD", train_year=baseline_year, test_year=comparison_year, streamlit_mode=True)
 
         with tab4:
             st.header("🏗️ SEU Group Analysis")
-            if 'SEU_Category' in gas_df.columns and 'SEU_Category' in elec_df.columns:
-                try:
-                    # Create tabs for Gas and Electricity SEU analysis
-                    seu_tab1, seu_tab2 = st.tabs(["🔥 Gas SEU Analysis", "⚡ Electricity SEU Analysis"])
-                    
-                    # Function to create SEU analysis plots and tables
-                    def create_seu_analysis(data_df, title):
-                        seu_grouped = data_df.copy()
-                        seu_grouped = seu_grouped[seu_grouped['Year'].isin([baseline_year, comparison_year])]
-                        
-                        # Check if we have data for both years
-                        years_present = seu_grouped['Year'].unique()
-                        if len(years_present) < 2:
-                            st.warning(f"⚠️ Data is only available for {', '.join(map(str, years_present))}. Please ensure data exists for both baseline and comparison years.")
-                            return
-                        
-                        # Calculate predictions for each SEU category
-                        seu_predictions = []
-                        monthly_predictions = []
-                        
-                        for category in seu_grouped['SEU_Category'].unique():
-                            category_data = seu_grouped[seu_grouped['SEU_Category'] == category]
-                            train_data = category_data[category_data['Year'] == baseline_year]
-                            test_data = category_data[category_data['Year'] == comparison_year]
-                            
-                            if len(train_data) > 0 and len(test_data) > 0:
-                                # Calculate monthly averages for baseline
-                                monthly_avg = train_data.groupby(train_data['Date'].dt.month)['Consumption'].mean()
-                                
-                                # Calculate prediction based on operational days
-                                test_data['Month'] = test_data['Date'].dt.month
-                                test_data['Predicted'] = test_data['Month'].map(monthly_avg)
-                                test_data['Predicted'] = test_data['Predicted'] * (test_data['IsOperational'].sum() / len(test_data))
-                                
-                                # Store predictions for summary
-                                seu_predictions.append(test_data[['SEU_Category', 'Consumption', 'Predicted']])
-                                
-                                # Store monthly predictions for chart
-                                monthly_pred = test_data.groupby('Month').agg({
-                                    'Predicted': 'sum'
-                                }).reset_index()
-                                monthly_pred['SEU_Category'] = category
-                                monthly_predictions.append(monthly_pred)
-                        
-                        if seu_predictions:
-                            predictions_df = pd.concat(seu_predictions)
-                            monthly_pred_df = pd.concat(monthly_predictions)
-                            
-                            # Create summary table
-                            group_summary = predictions_df.groupby('SEU_Category').agg({
-                                'Consumption': 'sum',
-                                'Predicted': 'sum'
-                            }).round(0)
-                            
-                            # Add baseline values for reference
-                            baseline_values = seu_grouped[seu_grouped['Year'] == baseline_year].groupby('SEU_Category')['Consumption'].sum()
-                            group_summary['Baseline'] = baseline_values
-                            
-                            # Calculate percentage change against prediction
-                            group_summary['% Change'] = 100 * (group_summary['Consumption'] - group_summary['Predicted']) / group_summary['Predicted']
-                            
-                            # Format the dataframe
-                            formatted_summary = group_summary.style.format({
-                                'Baseline': '{:,.0f}',
-                                'Consumption': '{:,.0f}',
-                                'Predicted': '{:,.0f}',
-                                '% Change': '{:+.1f}%'
-                            }).background_gradient(
-                                subset=['% Change'],
-                                cmap='RdYlGn_r',
-                                vmin=-50,
-                                vmax=50
-                            )
-                            
-                            st.dataframe(formatted_summary, use_container_width=True)
-                            
-                            # Create monthly comparison chart
-                            st.subheader(f"Monthly Consumption by SEU Category - {title}")
-                            
-                            # Prepare monthly data
-                            monthly_data = seu_grouped.copy()
-                            monthly_data['Month'] = monthly_data['Date'].dt.month
-                            monthly_summary = monthly_data.groupby(['SEU_Category', 'Year', 'Month'])['Consumption'].sum().reset_index()
-                            
-                            # Get unique categories
-                            categories = monthly_summary['SEU_Category'].unique()
-                            n_categories = len(categories)
-                            
-                            # Calculate number of rows and columns for subplots
-                            n_cols = 2
-                            n_rows = (n_categories + 1) // 2  # Round up division
-                            
-                            # Create the figure with subplots
-                            fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
-                            axes = axes.flatten()
-                            
-                            # Set up bar positions
-                            bar_width = 0.25
-                            x = np.arange(12)  # 12 months
-                            
-                            # Plot each category in its own subplot
-                            for i, category in enumerate(categories):
-                                ax = axes[i]
-                                
-                                # Plot baseline bars
-                                baseline_data = monthly_summary[
-                                    (monthly_summary['SEU_Category'] == category) & 
-                                    (monthly_summary['Year'] == baseline_year)
-                                ]
-                                baseline_values = np.zeros(12)
-                                for _, row in baseline_data.iterrows():
-                                    baseline_values[int(row['Month'])-1] = row['Consumption']
-                                ax.bar(x - bar_width/2, baseline_values, 
-                                      width=bar_width, alpha=0.5,
-                                      label='Baseline')
-                                
-                                # Plot actual bars
-                                actual_data = monthly_summary[
-                                    (monthly_summary['SEU_Category'] == category) & 
-                                    (monthly_summary['Year'] == comparison_year)
-                                ]
-                                actual_values = np.zeros(12)
-                                for _, row in actual_data.iterrows():
-                                    actual_values[int(row['Month'])-1] = row['Consumption']
-                                ax.bar(x + bar_width/2, actual_values, 
-                                      width=bar_width, alpha=0.7,
-                                      label='Actual')
-                                
-                                # Plot predictions as dashed lines
-                                pred_data = monthly_pred_df[monthly_pred_df['SEU_Category'] == category]
-                                pred_values = np.zeros(12)
-                                for _, row in pred_data.iterrows():
-                                    pred_values[int(row['Month'])-1] = row['Predicted']
-                                ax.plot(x, pred_values, 
-                                       linestyle='--', marker='x',
-                                       label='Predicted')
-                                
-                                # Customize each subplot
-                                ax.set_title(category)
-                                ax.set_xticks(x)
-                                ax.set_xticklabels(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                                                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                                                 rotation=45)
-                                ax.grid(True, alpha=0.3)
-                                ax.legend()
-                                
-                                # Only add y-label to the leftmost plots
-                                if i % n_cols == 0:
-                                    ax.set_ylabel('Consumption (kWh)')
-                            
-                            # Remove any empty subplots
-                            for j in range(len(categories), len(axes)):
-                                axes[j].set_visible(False)
-                            
-                            plt.tight_layout()
-                            st.pyplot(fig)
-                        else:
-                            st.warning("⚠️ Unable to calculate predictions. Please ensure sufficient data exists for both years.")
-                    
-                    # Create Gas SEU Analysis
-                    with seu_tab1:
-                        create_seu_analysis(gas_df, "Gas")
-                    
-                    # Create Electricity SEU Analysis
-                    with seu_tab2:
-                        create_seu_analysis(elec_df, "Electricity")
-                        
-                except Exception as e:
-                    st.error(f"⚠️ Error in SEU analysis: {str(e)}")
-            else:
-                st.warning("⚠️ SEU metadata not available in dataset. Please ensure the SEU mapping file is properly formatted.")
+            # Load SEU mapping for aggregation
+            try:
+                seu_mapping = pd.read_csv('seu_mapping.csv')
+                seu_mapping['Meter'] = seu_mapping['Meter'].str.strip()
+            except Exception as e:
+                st.error(f"⚠️ Could not load SEU mapping: {str(e)}")
+                st.stop()
+
+            # Helper to aggregate summary by SEU
+            def aggregate_by_seu(summary_df, seu_mapping):
+                merged = summary_df.merge(seu_mapping, on='Meter', how='left')
+                merged['SEU_Category'] = merged['SEU_Category'].fillna('Unknown')
+                # Group and sum numeric columns
+                group_cols = ['Baseline', 'Predicted', 'Actual', 'Estimated Savings', 'Baseline Days', 'Actual Days']
+                grouped = merged.groupby('SEU_Category')[group_cols].sum().reset_index()
+                # Recalculate % Savings
+                grouped['% Savings'] = np.where(
+                    grouped['Actual'] != 0,
+                    np.round(100 * grouped['Estimated Savings'] / grouped['Actual'], 1),
+                    np.nan
+                )
+                return grouped
+
+            # Tabs for Gas and Electricity SEU analysis
+            seu_tab1, seu_tab2 = st.tabs(["🔥 Gas SEU Analysis", "⚡ Electricity SEU Analysis"])
+
+            with seu_tab1:
+                st.subheader("Gas SEU Summary")
+                gas_seu_summary = aggregate_by_seu(gas_summary, seu_mapping)
+                # Remove Baseline Days and Actual Days columns
+                gas_seu_summary = gas_seu_summary.drop(columns=['Baseline Days', 'Actual Days'], errors='ignore')
+                st.dataframe(style_summary_table(gas_seu_summary), use_container_width=True)
+
+                # --- Monthly Plots for Gas SEUs ---
+                st.subheader("Monthly Consumption by SEU Category - Gas")
+                gas_df_seu = gas_df.copy()
+                gas_df_seu['SEU_Category'] = gas_df_seu['SEU_Category'].fillna('Unknown')
+                gas_df_seu = gas_df_seu[gas_df_seu['Year'].isin([baseline_year, comparison_year])]
+                # Order categories by actual consumption (comparison year)
+                actual_by_seu = gas_df_seu[gas_df_seu['Year'] == comparison_year].groupby('SEU_Category')['Consumption'].sum()
+                categories = actual_by_seu.sort_values(ascending=False).index.tolist()
+                n_categories = len(categories)
+                n_cols = 2
+                n_rows = (n_categories + 1) // 2
+                fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
+                axes = axes.flatten()
+                bar_width = 0.25
+                x = np.arange(1, 13)
+                for i, category in enumerate(categories):
+                    ax = axes[i]
+                    baseline = gas_df_seu[(gas_df_seu['SEU_Category'] == category) & (gas_df_seu['Year'] == baseline_year)]
+                    baseline_monthly = baseline.groupby(baseline['Date'].dt.month)['Consumption'].sum().reindex(x, fill_value=0)
+                    ax.bar(x - bar_width/2, baseline_monthly.values, width=bar_width, alpha=0.5, label='Baseline')
+                    actual = gas_df_seu[(gas_df_seu['SEU_Category'] == category) & (gas_df_seu['Year'] == comparison_year)]
+                    actual_monthly = actual.groupby(actual['Date'].dt.month)['Consumption'].sum().reindex(x, fill_value=0)
+                    ax.bar(x + bar_width/2, actual_monthly.values, width=bar_width, alpha=0.7, label='Actual')
+                    pred_monthly = np.zeros(12)
+                    for meter in seu_mapping[seu_mapping['SEU_Category'] == category]['Meter']:
+                        meter_data = gas_df[(gas_df['Meter'] == meter) & (gas_df['Year'].isin([baseline_year, comparison_year]))].copy()
+                        if meter_data.empty:
+                            continue
+                        train = meter_data[meter_data['Year'] == baseline_year].dropna(subset=['HDD', 'Consumption'])
+                        test = meter_data[meter_data['Year'] == comparison_year].dropna(subset=['HDD', 'Consumption'])
+                        if len(train) < 30 or len(test) < 1:
+                            continue
+                        from sklearn.linear_model import LinearRegression
+                        X_train = train[['HDD', 'IsOperational']]
+                        y_train = train['Consumption']
+                        model = LinearRegression().fit(X_train, y_train)
+                        X_test = test[['HDD', 'IsOperational']]
+                        test = test.copy()
+                        test['Predicted'] = model.predict(X_test)
+                        monthly_pred = test.groupby(test['Date'].dt.month)['Predicted'].sum().reindex(x, fill_value=0)
+                        pred_monthly += monthly_pred.values
+                    ax.plot(x, pred_monthly, linestyle='--', marker='x', label='Predicted')
+                    ax.set_title(category)
+                    ax.set_xticks(x)
+                    ax.set_xticklabels(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], rotation=45)
+                    ax.grid(True, alpha=0.3)
+                    ax.legend()
+                    if i % n_cols == 0:
+                        ax.set_ylabel('Consumption (kWh)')
+                for j in range(len(categories), len(axes)):
+                    axes[j].set_visible(False)
+                plt.tight_layout()
+                st.pyplot(fig)
+
+            with seu_tab2:
+                st.subheader("Electricity SEU Summary")
+                elec_seu_summary = aggregate_by_seu(elec_summary, seu_mapping)
+                # Remove Baseline Days and Actual Days columns
+                elec_seu_summary = elec_seu_summary.drop(columns=['Baseline Days', 'Actual Days'], errors='ignore')
+                st.dataframe(style_summary_table(elec_seu_summary), use_container_width=True)
+
+                # --- Monthly Plots for Electricity SEUs ---
+                st.subheader("Monthly Consumption by SEU Category - Electricity")
+                elec_df_seu = elec_df.copy()
+                elec_df_seu['SEU_Category'] = elec_df_seu['SEU_Category'].fillna('Unknown')
+                elec_df_seu = elec_df_seu[elec_df_seu['Year'].isin([baseline_year, comparison_year])]
+                # Order categories by actual consumption (comparison year)
+                actual_by_seu = elec_df_seu[elec_df_seu['Year'] == comparison_year].groupby('SEU_Category')['Consumption'].sum()
+                categories = actual_by_seu.sort_values(ascending=False).index.tolist()
+                n_categories = len(categories)
+                n_cols = 2
+                n_rows = (n_categories + 1) // 2
+                fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
+                axes = axes.flatten()
+                bar_width = 0.25
+                x = np.arange(1, 13)
+                for i, category in enumerate(categories):
+                    ax = axes[i]
+                    baseline = elec_df_seu[(elec_df_seu['SEU_Category'] == category) & (elec_df_seu['Year'] == baseline_year)]
+                    baseline_monthly = baseline.groupby(baseline['Date'].dt.month)['Consumption'].sum().reindex(x, fill_value=0)
+                    ax.bar(x - bar_width/2, baseline_monthly.values, width=bar_width, alpha=0.5, label='Baseline')
+                    actual = elec_df_seu[(elec_df_seu['SEU_Category'] == category) & (elec_df_seu['Year'] == comparison_year)]
+                    actual_monthly = actual.groupby(actual['Date'].dt.month)['Consumption'].sum().reindex(x, fill_value=0)
+                    ax.bar(x + bar_width/2, actual_monthly.values, width=bar_width, alpha=0.7, label='Actual')
+                    pred_monthly = np.zeros(12)
+                    for meter in seu_mapping[seu_mapping['SEU_Category'] == category]['Meter']:
+                        meter_data = elec_df[(elec_df['Meter'] == meter) & (elec_df['Year'].isin([baseline_year, comparison_year]))].copy()
+                        if meter_data.empty:
+                            continue
+                        train = meter_data[meter_data['Year'] == baseline_year].dropna(subset=['CDD', 'Consumption'])
+                        test = meter_data[meter_data['Year'] == comparison_year].dropna(subset=['CDD', 'Consumption'])
+                        if len(train) < 30 or len(test) < 1:
+                            continue
+                        from sklearn.linear_model import LinearRegression
+                        X_train = train[['CDD', 'IsOperational']]
+                        y_train = train['Consumption']
+                        model = LinearRegression().fit(X_train, y_train)
+                        X_test = test[['CDD', 'IsOperational']]
+                        test = test.copy()
+                        test['Predicted'] = model.predict(X_test)
+                        monthly_pred = test.groupby(test['Date'].dt.month)['Predicted'].sum().reindex(x, fill_value=0)
+                        pred_monthly += monthly_pred.values
+                    ax.plot(x, pred_monthly, linestyle='--', marker='x', label='Predicted')
+                    ax.set_title(category)
+                    ax.set_xticks(x)
+                    ax.set_xticklabels(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], rotation=45)
+                    ax.grid(True, alpha=0.3)
+                    ax.legend()
+                    if i % n_cols == 0:
+                        ax.set_ylabel('Consumption (kWh)')
+                for j in range(len(categories), len(axes)):
+                    axes[j].set_visible(False)
+                plt.tight_layout()
+                st.pyplot(fig)
 
     except Exception as e:
         st.error(f"⚠️ Error during processing: {e}")

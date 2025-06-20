@@ -1,0 +1,3 @@
+@echo off
+echo Starting Energy Baseline Dashboard...
+start "" "dist\EnergyBaselineDashboard.exe" 
