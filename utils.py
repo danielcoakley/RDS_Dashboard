@@ -85,9 +85,11 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
         # Merge with electricity data
         elec_df = elec_df.merge(seu_mapping, on='Meter', how='left')
         
-        # Fill unknown categories
-        gas_df['SEU_Category'] = gas_df['SEU_Category'].fillna('Unknown')
-        elec_df['SEU_Category'] = elec_df['SEU_Category'].fillna('Unknown')
+        # Always ensure SEU_Category exists and is filled
+        for df in [gas_df, elec_df]:
+            if 'SEU_Category' not in df.columns:
+                df['SEU_Category'] = 'Unknown'
+            df['SEU_Category'] = df['SEU_Category'].fillna('Unknown')
     except Exception as e:
         print(f"Warning: Could not load SEU mapping: {str(e)}")
 
@@ -97,46 +99,108 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
 
     return gas_df, elec_df
 
-def evaluate_meter_models(data, climate_col='HDD', train_year=2023, test_year=2025):
+def evaluate_meter_models(data, train_year=2023, test_year=2025):
     results = []
     data['IsOperational'] = data['Consumption'] > 0
-
+    if 'SEU_Category' not in data.columns:
+        data['SEU_Category'] = 'Unknown'
+    data['SEU_Category'] = data['SEU_Category'].fillna('Unknown')
+    seu_norms = {
+        'Boiler Systems (Gas)': 'hdd',
+        'Air Handling Units (Gas)': 'hdd',
+        'Catering Equipment': 'opday',
+        'Lighting Systems': 'opday',
+        'Air Conditioning & Refrigeration': 'cdd',
+        'Electric Space Heaters': 'hdd',
+        'ICT & Server Room Cooling': 'fixed',
+        'EV Charging Infrastructure': 'opday',
+        'Onsite Solar PV': 'pv',
+    }
     for meter in data['Meter'].unique():
         meter_data = data[data['Meter'] == meter].copy()
-        meter_data = meter_data.dropna(subset=[climate_col, 'Consumption'])
-
+        if meter_data.empty or 'SEU_Category' not in meter_data.columns:
+            seu = 'Unknown'
+        else:
+            seu = meter_data['SEU_Category'].iloc[0] if pd.notna(meter_data['SEU_Category'].iloc[0]) else 'Unknown'
+        norm = seu_norms.get(seu, 'opday')
         train = meter_data[meter_data['Year'] == train_year]
         test = meter_data[meter_data['Year'] == test_year]
-
-        if len(train) < 30 or len(test) < 30:
+        if len(train) < 10 or len(test) < 10:
             continue
-
-        train = train.dropna(subset=[climate_col, 'Consumption'])
-        test = test.dropna(subset=[climate_col, 'Consumption'])
-
-        X_train = train[[climate_col, 'IsOperational']]
-        y_train = train['Consumption']
-        model = LinearRegression().fit(X_train, y_train)
-
-        X_test = test[[climate_col, 'IsOperational']]
-        y_test = test['Consumption']
-        y_pred = model.predict(X_test)
-
-        r2 = model.score(X_train, y_train)
-
+        if not test.empty:
+            max_test_date = test['Date'].max()
+            train = train[train['Date'] <= max_test_date]
+        if norm == 'hdd':
+            train = train.dropna(subset=['HDD', 'Consumption'])
+            test = test.dropna(subset=['HDD', 'Consumption'])
+            if len(train) < 10 or len(test) < 1:
+                continue
+            X_train = train[['HDD', 'IsOperational']]
+            y_train = train['Consumption']
+            X_test = test[['HDD', 'IsOperational']]
+            y_test = test['Consumption']
+            from sklearn.linear_model import LinearRegression
+            model = LinearRegression().fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            r2 = model.score(X_train, y_train)
+        elif norm == 'cdd':
+            train = train.dropna(subset=['CDD', 'Consumption'])
+            test = test.dropna(subset=['CDD', 'Consumption'])
+            if len(train) < 10 or len(test) < 1:
+                continue
+            X_train = train[['CDD', 'IsOperational']]
+            y_train = train['Consumption']
+            X_test = test[['CDD', 'IsOperational']]
+            y_test = test['Consumption']
+            from sklearn.linear_model import LinearRegression
+            model = LinearRegression().fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            r2 = model.score(X_train, y_train)
+        elif norm == 'opday':
+            train = train.dropna(subset=['Consumption'])
+            test = test.dropna(subset=['Consumption'])
+            if len(train) < 10 or len(test) < 1:
+                continue
+            X_train = train[['IsOperational']]
+            y_train = train['Consumption']
+            X_test = test[['IsOperational']]
+            y_test = test['Consumption']
+            from sklearn.linear_model import LinearRegression
+            model = LinearRegression().fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            r2 = model.score(X_train, y_train)
+        elif norm == 'fixed':
+            r2 = float('nan')
+            y_pred = np.zeros(len(test))
+            y_test = test['Consumption']
+        elif norm == 'pv':
+            r2 = float('nan')
+            y_pred = np.zeros(len(test))
+            y_test = test['Consumption']
+        else:
+            train = train.dropna(subset=['Consumption'])
+            test = test.dropna(subset=['Consumption'])
+            if len(train) < 10 or len(test) < 1:
+                continue
+            X_train = train[['IsOperational']]
+            y_train = train['Consumption']
+            X_test = test[['IsOperational']]
+            y_test = test['Consumption']
+            from sklearn.linear_model import LinearRegression
+            model = LinearRegression().fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            r2 = model.score(X_train, y_train)
         results.append({
             'Meter': meter,
-            'R-squared': round(r2, 3),
+            'SEU_Category': seu,
+            'R-squared': round(r2, 3) if not pd.isna(r2) else None,
             'Baseline': train['Consumption'].sum(),
-            'Predicted': round(y_pred.sum(), 1),
+            'Predicted': round(np.sum(y_pred), 1) if norm not in ['fixed', 'pv'] else test['Consumption'].sum(),
             'Actual': test['Consumption'].sum(),
-            'Estimated Savings': round(y_pred.sum() - test['Consumption'].sum(), 0),
-           # f'{climate_col} Sensitivity': round(model.coef_[0], 2),
-           # 'Operational Effect': round(model.coef_[1], 2),
+            'Estimated Savings': round((np.sum(y_pred) if norm not in ['fixed', 'pv'] else test['Consumption'].sum()) - test['Consumption'].sum(), 0),
             'Baseline Days': int(train['IsOperational'].sum()),
             'Actual Days': int(test['IsOperational'].sum())
         })
-
     return pd.DataFrame(results)
 
 def plot_monthly_comparison(data, summary_df, climate_col='HDD', train_year=2023, test_year=2025, streamlit_mode=False):
