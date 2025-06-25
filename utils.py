@@ -253,7 +253,6 @@ def evaluate_meter_models(data, train_year=2023, test_year=2025):
         results.append({
             'Meter': meter,
             'SEU_Category': seu,
-            'R-squared': round(r2, 3) if not pd.isna(r2) else None,
             'Baseline': train['Consumption'].sum(),
             'Predicted': round(np.sum(y_pred), 1) if norm not in ['fixed', 'pv'] else test['Consumption'].sum(),
             'Actual': test['Consumption'].sum(),
@@ -328,7 +327,6 @@ def style_summary_table(df, title=""):
           .style
           .background_gradient(subset=['% Savings'], cmap='RdYlGn', vmin=-50, vmax=50)
           .format({
-              'R-squared': '{:,.2f}',
               'Baseline': '{:,.0f}',
               'Predicted': '{:,.0f}',
               'Actual': '{:,.0f}',

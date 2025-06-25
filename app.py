@@ -136,9 +136,6 @@ This dashboard provides a climate-normalized analysis of energy consumption at t
 - **Predicted**: Model-predicted consumption for the reporting year based on baseline conditions.
 - **Estimated Savings**: Difference between predicted and actual consumption. Positive means energy savings.
 - **% Savings**: Estimated savings as a percentage of actual consumption.
-- **R-squared**: Model fit quality (closer to 1 is better).
-- **Sensitivity**: kWh increase per unit HDD or CDD.
-- **Operational Effect**: Additional baseline consumption when the building is operational.
 - **Baseline/Actual Days**: Number of operational days used in the model comparison.
 
 Use this summary to quickly identify overall performance and then drill into each tab for detailed per-meter breakdowns.
@@ -162,7 +159,6 @@ The model evaluation in this dashboard uses a linear regression approach for eac
     - **Predicted**: The sum of model-predicted daily consumptions for the comparison year.
     - **Actual**: The sum of observed daily consumptions for the comparison year.
     - **Estimated Savings**: The difference between predicted and actual consumption.
-    - **R-squared**: Indicates how well the model fits the baseline year data.
 
 **Dependent Variables (Normalization Factors) by SEU Category:**
 
