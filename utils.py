@@ -187,7 +187,9 @@ def evaluate_meter_models(data, train_year=2023, test_year=2025):
             continue
         if not test.empty:
             max_test_date = test['Date'].max()
-            train = train[train['Date'] <= max_test_date]
+            # Create a cut-off date in the baseline year with the same month and day
+            baseline_cutoff = pd.Timestamp(year=train_year, month=max_test_date.month, day=max_test_date.day)
+            train = train[train['Date'] <= baseline_cutoff]
         if norm == 'hdd':
             train = train.dropna(subset=['HDD', 'Consumption'])
             test = test.dropna(subset=['HDD', 'Consumption'])
