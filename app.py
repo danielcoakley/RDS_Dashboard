@@ -120,8 +120,8 @@ if all(files.values()):
             # Add a note about partial year comparison
             st.info("ℹ️ The comparison above uses climate-normalized predictions to account for partial year data and weather variations.")
 
-            st.markdown("### 📘 Dashboard Guide")
-            st.markdown("""
+            with st.expander("📘 Dashboard Guide", expanded=False):
+                st.markdown("""
 This dashboard provides a climate-normalized analysis of energy consumption at the RDS site.
 
 **Tabs:**
@@ -142,7 +142,50 @@ This dashboard provides a climate-normalized analysis of energy consumption at t
 - **Baseline/Actual Days**: Number of operational days used in the model comparison.
 
 Use this summary to quickly identify overall performance and then drill into each tab for detailed per-meter breakdowns.
-            """)
+                """)
+
+            with st.expander("🧮 How Model Evaluation Works", expanded=False):
+                st.markdown("""
+The model evaluation in this dashboard uses a linear regression approach for each meter, tailored to the type of energy use (SEU category):
+
+- **Model Type:** Ordinary Least Squares (OLS) linear regression is fitted for each meter using historical (baseline year) data.
+- **Features Used:**
+    - For most meters, the model uses a climate variable (HDD for gas, CDD for electricity) and whether the building was operational on each day.
+    - For some SEU categories, only operational days or fixed values are used, depending on the nature of the load.
+    - If climate data is not available, only the operational status is used.
+- **Training:**
+    - The model is trained on data from the selected baseline year.
+    - The features are used to predict daily consumption.
+- **Prediction:**
+    - The trained model predicts what consumption would have been in the comparison year, given the actual weather and operational days in that year.
+- **Outputs:**
+    - **Predicted**: The sum of model-predicted daily consumptions for the comparison year.
+    - **Actual**: The sum of observed daily consumptions for the comparison year.
+    - **Estimated Savings**: The difference between predicted and actual consumption.
+    - **R-squared**: Indicates how well the model fits the baseline year data.
+
+**Dependent Variables (Normalization Factors) by SEU Category:**
+
+| SEU Category                      | Normalization / Model Features         |
+|-----------------------------------|----------------------------------------|
+| Boiler Systems (Gas)              | HDD, IsOperational                     |
+| Air Handling Units (Gas)          | HDD, IsOperational                     |
+| Catering Equipment                | IsOperational                          |
+| Lighting Systems                  | IsOperational                          |
+| Air Conditioning & Refrigeration  | CDD, IsOperational                     |
+| Electric Space Heaters            | HDD, IsOperational                     |
+| ICT & Server Room Cooling         | Fixed (no regression, baseline only)   |
+| EV Charging Infrastructure        | IsOperational                          |
+| Onsite Solar PV                   | Fixed (no regression, baseline only)   |
+| Other/Unknown                     | IsOperational                          |
+
+- **HDD**: Heating Degree Days (for gas-driven heating loads)
+- **CDD**: Cooling Degree Days (for cooling/electric loads)
+- **IsOperational**: Whether the building was operational on a given day (binary)
+- **Fixed**: No regression; baseline consumption is used as prediction
+
+This approach allows for fair, climate-normalized comparisons between years, accounting for weather, operational differences, and the specific nature of each energy use.
+                """)
 
         with tab2:
             st.header("⚡ Electricity Model Evaluation")
