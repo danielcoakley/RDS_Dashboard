@@ -4,6 +4,36 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import matplotlib.pyplot as plt
 import streamlit as st
+import re
+
+def extract_meter_id(meter_name):
+    """Extract meter ID (EM** or GM**) from meter name"""
+    match = re.search(r'(E|G)M\d+', meter_name)
+    return match.group(0) if match else meter_name
+
+def deduplicate_meters(df):
+    """Remove duplicate meters based on meter ID, keeping the meter with the most data"""
+    df['Meter_ID'] = df['Meter'].apply(extract_meter_id)
+    
+    # Group by Meter_ID and keep the meter with the most data points
+    meter_counts = df.groupby('Meter_ID').size()
+    meter_to_keep = meter_counts.idxmax()
+    
+    # For each Meter_ID, keep only the meter name that has the most data
+    deduplicated_data = []
+    for meter_id in df['Meter_ID'].unique():
+        meter_group = df[df['Meter_ID'] == meter_id]
+        if len(meter_group) > 1:
+            # Keep the meter with the most data points
+            meter_counts_in_group = meter_group.groupby('Meter').size()
+            best_meter = meter_counts_in_group.idxmax()
+            deduplicated_data.append(meter_group[meter_group['Meter'] == best_meter])
+        else:
+            deduplicated_data.append(meter_group)
+    
+    result = pd.concat(deduplicated_data, ignore_index=True)
+    result = result.drop('Meter_ID', axis=1)
+    return result
 
 def preprocess_data(energy_df, hdd_df, cdd_df):
     # Reshape general energy data
@@ -36,8 +66,17 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
     # ---------------- GAS DATA ---------------- #
     gas_rows = energy_df[energy_df['Utility'] == 'Gas'].index
     gas_blocks = []
+    seen_meter_ids = set()
+    
     for idx in gas_rows:
         meter_name = energy_df.loc[idx, 'Metered Sector']
+        meter_id = extract_meter_id(meter_name)
+        
+        # Skip if we've already seen this meter ID
+        if meter_id in seen_meter_ids:
+            continue
+            
+        seen_meter_ids.add(meter_id)
         data_row = energy_df.loc[idx + 1:idx + 1].copy()
         data_row['Meter'] = meter_name
         gas_blocks.append(data_row)
@@ -56,8 +95,17 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
     # ---------------- ELECTRICITY DATA ---------------- #
     elec_rows = energy_df[energy_df['Utility'] == 'Electrical'].index
     elec_blocks = []
+    seen_meter_ids = set()
+    
     for idx in elec_rows:
         meter_name = energy_df.loc[idx, 'Metered Sector']
+        meter_id = extract_meter_id(meter_name)
+        
+        # Skip if we've already seen this meter ID
+        if meter_id in seen_meter_ids:
+            continue
+            
+        seen_meter_ids.add(meter_id)
         data_row = energy_df.loc[idx + 1:idx + 1].copy()
         data_row['Meter'] = meter_name
         elec_blocks.append(data_row)
@@ -78,6 +126,16 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
         seu_mapping = pd.read_csv('seu_mapping.csv')
         # Clean up meter names in SEU mapping to match energy data
         seu_mapping['Meter'] = seu_mapping['Meter'].str.strip()
+        
+        # Get list of meters to ignore
+        ignored_meters = seu_mapping[seu_mapping['SEU_Category'] == 'Ignore']['Meter'].tolist()
+        
+        # Filter out ignored meters from gas and electricity data
+        gas_df = gas_df[~gas_df['Meter'].isin(ignored_meters)]
+        elec_df = elec_df[~elec_df['Meter'].isin(ignored_meters)]
+        
+        # Filter out meters marked as "Ignore" from SEU mapping
+        seu_mapping = seu_mapping[seu_mapping['SEU_Category'] != 'Ignore']
         
         # Merge with gas data
         gas_df = gas_df.merge(seu_mapping, on='Meter', how='left')

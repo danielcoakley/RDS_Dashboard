@@ -1,29 +1,59 @@
 Meter,SEU_Category
+EM33 Members,AC / Refrigeration
+EM24 Industries,AC / Refrigeration
+Main Hall (Main Switch Room),AC / Refrigeration
+EM31 Main Hall DB B,AC / Refrigeration
+EM9 Shelbourne Hall 2,AC / Refrigeration
+EM2 Minerva Area,AC / Refrigeration
+EM7 Library,AC / Refrigeration
+EM30 Serpentine,AC / Refrigeration
+EM43 Industries Hall DB,AC / Refrigeration
+EM16 New Concert Hall Immediate board,AC / Refrigeration
+EM29 Concert Hall DB,AC / Refrigeration
+EM34 Main Hall Balcony Anglesea,AC / Refrigeration
+EM44 Ring Inspire,AC / Refrigeration
+EM44 Ring Inspire - Electricity,AC / Refrigeration
+EM3 Minerva,AC / Refrigeration
+EM21 Existing Concert Entrance Hall Foyer,AC / Refrigeration
+EM50 The Church,AC / Refrigeration
+EM4 Vodafone Meter,AC / Refrigeration
+EM5 O2 Meter,AC / Refrigeration
+EM22 Concert Stage 2 MccB,AC / Refrigeration
+EM20 Concert Stage 1 MccB,AC / Refrigeration
+GM11 Hall 4 and 5 (AHU 5),AHU
+GM10 F Roof (AHU 3),AHU
+GM9 Back Leinster (AHU 4),AHU
+EM38 Simmonscourt - F Roof (AHU 3),AHU
+EM39 Simmonscourt - Hall 4 and 5 (AHU 5),AHU
+EM17 Serpentine Condenser,AHU
 GM13 Judges and Stewards,Boiler
 GM7 Gas Meter Anglesea Switchroom,Boiler
-GM6 Gate B Kitchen Gas Meter,Catering
 Minerva Area - Gas (To Be Connected),Boiler
-Minerva Kitchen - Gas (To Be Connected),Catering
 GM1 Main Hall Gas Meter 1,Boiler
 GM4 Main Hall Gas Meter 2,Boiler
 GM2 Hall 2 Gas Meter 1,Boiler
 GM3 Hall 2 Gas Meter 2,Boiler
-"GM5 Service Yard, Anglesea Road [GPRN 102751, FVT]",Other
-Main Kitchen - Gas (To Be Connected),Catering
-Members Kitchen - Gas (To Be Connected),Catering
 Concert Hall - Gas (To Be Connected),Boiler
-Merrion Kitchen - Gas (To Be Connected),Catering
 "GM15 Anglesea Gate [GPRN 102747, FVT]",Boiler
-GM12 D4 Diner Gas,Catering
-Ailesbury Kitchen - Gas (To Be Connected),Catering
-Landsowne Kitchen - Gas (To Be Connected),Catering
 GM17 Industries Gas 2,Boiler
 GM16 Industries Gas 1,Boiler
 Main Office (To Be Connected),Boiler
+GM29 Boilerhouse Gas meter,Boiler
+GM22 Lansdowne Boiler Heating,Boiler
+GM27 Anglesea House - Main House,Boiler
+GM14 Anglesea Road Gate D (Under Arch),Boiler
+GM19 Premises Head Office,Boiler
+GM24 Dodder Building,Boiler
+GM31 Minerva Suite Gas,Boiler
+GM6 Gate B Kitchen Gas Meter,Catering
+Minerva Kitchen - Gas (To Be Connected),Catering
+Main Kitchen - Gas (To Be Connected),Catering
+Members Kitchen - Gas (To Be Connected),Catering
+Merrion Kitchen - Gas (To Be Connected),Catering
+GM12 D4 Diner Gas,Catering
+Ailesbury Kitchen - Gas (To Be Connected),Catering
+Landsowne Kitchen - Gas (To Be Connected),Catering
 GM8 Simmonscourt Gas Meter,Catering
-GM11 Hall 4 and 5 (AHU 5),AHU
-GM10 F Roof (AHU 3),AHU
-GM9 Back Leinster (AHU 4),AHU
 GM12 D4 Diner - Gas,Catering
 GM23 Members Kitchen,Catering
 GM25 Merrion Kitchen,Catering
@@ -31,79 +61,49 @@ GM20 Lansdowne Kitchen,Catering
 GM21 Ailsbury Kitchen,Catering
 GM18 Anglesea House - Kitchen 2,Catering
 GM28 New Kitchen Gas Meter,Catering
-GM29 Boilerhouse Gas meter,Boiler
 GM30 Minerva Kitchen Gas,Catering
-GM22 Lansdowne Boiler Heating,Boiler
-GM27 Anglesea House - Main House,Boiler
-GM14 Anglesea Road Gate D (Under Arch),Boiler
-GM19 Premises Head Office,Boiler
-GM24 Dodder Building,Boiler
-GM31 Minerva Suite Gas,Boiler
 GM26 Anglesea House - Kitchen 1,Catering
-EM26 Anglesea Road ESB Incomer [MPRN 10001468827],Mains
-EM32: Main Board Anglesea Switchroom,Mains
-EM27 Main Panel Feeder,Mains
 EM40 Simmonscourt ESB Incomer (Simmonscourt - ESB Main Meter kWh) [MPRN 10001468839],Catering
-EM40 Simmonscourt - ESB Main Meter kWh,Mains
-EM33 Members,AC / Refrigeration
-EM11 Main Meter Main Board Meter,Mains
-EM24 Industries,AC / Refrigeration
-Main Hall (Main Switch Room),AC / Refrigeration
-EM31 Main Hall DB B,AC / Refrigeration
-EM9 Shelbourne Hall 2,AC / Refrigeration
 EM46 New Main Kitchen,Catering
-EM52 : Main Kitchen Heater,Heater
-EM1 Solar Panel,Solar
-EM2 Minerva Area,AC / Refrigeration
 EM49 New Main Kitchen Power,Catering
-EM7 Library,AC / Refrigeration
 EM10 Members Kitchen - Electricity,Catering
 EM10 Members Kitchen,Catering
-EM30 Serpentine,AC / Refrigeration
-EM43 Industries Hall DB,AC / Refrigeration
-EM16 New Concert Hall Immediate board,AC / Refrigeration
-EM29 Concert Hall DB,AC / Refrigeration
 EM35 Simmonscourt Restaurant,Catering
 EM35 Simmonscourt  Restaurant - Electricity,Catering
-EM34 Main Hall Balcony Anglesea,AC / Refrigeration
-EM51 Car Charger,Electric Vehicles
 EM6 Members Bar,Catering
 EM8 Minerva Kitchen - Electricity,Catering
 EM8 Minerva Kitchen,Catering
-EM44 Ring Inspire,AC / Refrigeration
-EM44 Ring Inspire - Electricity,AC / Refrigeration
 EM36 Simmonscourt Inspire Café - Electricity,Catering
 EM36 Simmonscourt Inspire Cafe,Catering
-EM19 Existing Backstage SDB 2,Other
-EM19 Existing Backstage SDB 1,Other
-EM41 HO Offices,Other
-EM3 Minerva,AC / Refrigeration
-EM52 - Ring Hall Main Meter,Mains
-EM47 New Main Kitchen Lighting,Lighting
-EM21 Existing Concert Entrance Hall Foyer,AC / Refrigeration
-EM50 The Church,AC / Refrigeration
-EM4 Vodafone Meter,AC / Refrigeration
-EM5 O2 Meter,AC / Refrigeration
 EM48 New Main Kitchen General Services,Catering
 EM37 Simmonscourt - Back Leinster (AHU 4),Catering
 GM28 Main Kitchen,Catering
-EM38 Simmonscourt - F Roof (AHU 3),AHU
 EM42 D4 Diner,Catering
 EM42 D4 Diner - Electricity,Catering
-EM22 Concert Stage 2 MccB,AC / Refrigeration
-EM39 Simmonscourt - Hall 4 and 5 (AHU 5),AHU
-EM17 Serpentine Condenser,AHU
-EM20 Concert Stage 1 MccB,AC / Refrigeration
+EM45 Lansdowne Kitchen - Electricity,Catering
+EM45 Lansdowne Kitchen,Catering
+Ailesbury Kitchen - Electricity (To Be Connected),Catering
+Merrion Kitchen - Electricity (To Be Connected),Catering
+EM51 Car Charger,Electric Vehicles
+Merrion Road Car Park EV Chargers (To Be Connected),Electric Vehicles
+EM52 : Main Kitchen Heater,Heater
+EM47 New Main Kitchen Lighting,Lighting
+EM15 Outside Concert Hall,Lighting
+EM26 Anglesea Road ESB Incomer [MPRN 10001468827],Mains
+EM32: Main Board Anglesea Switchroom,Mains
+EM27 Main Panel Feeder,Mains
+EM40 Simmonscourt - ESB Main Meter kWh,Mains
+EM11 Main Meter Main Board Meter,Mains
+EM52 - Ring Hall Main Meter,Mains
 EM25 Pembroke Distribution,Mains
 EM18 Existing Backstage SDB 2,Mains
 EM18 Existing Backstage SDB 1,Mains
-EM45 Lansdowne Kitchen - Electricity,Catering
-EM45 Lansdowne Kitchen,Catering
-EM15 Outside Concert Hall,Lighting
-Ailesbury Kitchen - Electricity (To Be Connected),Catering
 EM28 Generator Incomer,Mains
-EM40 Simmonscourt - ESB Main Meter kVArh,
-EM40 Simmonscourt - ESB Timing,
-Merrion Kitchen - Electricity (To Be Connected),Catering
-Merrion Road Car Park EV Chargers (To Be Connected),Electric Vehicles
+EM40 Simmonscourt - ESB Main Meter kVArh,Ignore
+EM40 Simmonscourt - ESB Timing,Ignore
+"GM5 Service Yard, Anglesea Road [GPRN 102751, FVT]",Other
+EM19 Existing Backstage SDB 2,Other
+EM19 Existing Backstage SDB 1,Other
+EM41 HO Offices,Other
 Stage,Other
+EM1 Solar Panel,Solar
