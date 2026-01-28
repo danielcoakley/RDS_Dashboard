@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from utils import preprocess_data, evaluate_meter_models, plot_monthly_comparison, add_percent_savings, style_summary_table
 import time
 
@@ -135,6 +136,254 @@ if all(files.values()):
                     <p style='font-size: 20px; color: {elec_color};'>{elec_delta}</p>
                 </div>
                 """, unsafe_allow_html=True)
+
+            # Sankey diagram: Total -> Gas/Electricity -> SEUs (comparison year actuals)
+            if (total_gas_actual + total_elec_actual) > 0:
+                st.subheader(f"🔀 Energy Flow by SEU in {comparison_year}")
+
+                # Aggregate SEU totals separately for gas and electricity
+                gas_seu = gas_summary.groupby('SEU_Category')['Actual'].sum()
+                elec_seu = elec_summary.groupby('SEU_Category')['Actual'].sum()
+
+                # Filter out zero-usage SEUs to keep the diagram readable
+                gas_seu = gas_seu[gas_seu > 0]
+                elec_seu = elec_seu[elec_seu > 0]
+
+                total_actual = total_gas_actual + total_elec_actual
+
+                # Icon mapping for SEU categories to make labels more intuitive.
+                # Keys align with SEU_Category values from seu_mapping.csv.
+                seu_icon_map = {
+                    "AC / Refrigeration": "❄️",
+                    "AHU": "🌬️",
+                    "Boiler": "🔥",
+                    "Catering": "🍽️",
+                    "Electric Vehicles": "🚗",
+                    "Heater": "🔥",
+                    "Lighting": "💡",
+                    "Mains": "🔌",
+                    "Solar": "☀️",
+                    "Other": "❓",
+                    "Unknown": "❓",
+                }
+
+                # Define node labels
+                labels = ["Total Energy", "🔥 Gas", "⚡ Electricity"]
+                # Map SEU categories to nodes under Gas and Electricity with icons
+                gas_seu_labels = [
+                    f"{seu_icon_map.get(seu, '🔥')} {seu}" for seu in gas_seu.index
+                ]
+                elec_seu_labels = [
+                    f"{seu_icon_map.get(seu, '⚡')} {seu}" for seu in elec_seu.index
+                ]
+                labels.extend(gas_seu_labels + elec_seu_labels)
+
+                # Node indices
+                idx_total = 0
+                idx_gas = 1
+                idx_elec = 2
+                idx_gas_seu_start = 3
+                idx_elec_seu_start = idx_gas_seu_start + len(gas_seu_labels)
+
+                sources = []
+                targets = []
+                values = []
+
+                # Total -> Gas/Electricity
+                if total_gas_actual > 0:
+                    sources.append(idx_total)
+                    targets.append(idx_gas)
+                    values.append(float(total_gas_actual))
+                if total_elec_actual > 0:
+                    sources.append(idx_total)
+                    targets.append(idx_elec)
+                    values.append(float(total_elec_actual))
+
+                # Gas -> Gas SEUs
+                for i, (seu, val) in enumerate(gas_seu.items()):
+                    node_idx = idx_gas_seu_start + i
+                    sources.append(idx_gas)
+                    targets.append(node_idx)
+                    values.append(float(val))
+
+                # Electricity -> Electricity SEUs
+                for i, (seu, val) in enumerate(elec_seu.items()):
+                    node_idx = idx_elec_seu_start + i
+                    sources.append(idx_elec)
+                    targets.append(node_idx)
+                    values.append(float(val))
+
+                # Compute percentage of parent for each link
+                parent_totals = {}
+                for s, v in zip(sources, values):
+                    parent_totals[s] = parent_totals.get(s, 0) + v
+                link_percents = [
+                    (val / parent_totals.get(src, val) * 100) if parent_totals.get(src, 0) else 0
+                    for src, val in zip(sources, values)
+                ]
+
+                # Build Sankey figure
+                fig = go.Figure(data=[go.Sankey(
+                    node=dict(
+                        pad=20,
+                        thickness=24,
+                        line=dict(color="black", width=0.5),
+                        label=labels,
+                        color=[
+                            "#888888",  # Total Energy
+                            "#ff9933",  # Gas
+                            "#3399ff",  # Electricity
+                        ] + ["#ffd9b3"] * len(gas_seu_labels) + ["#b3d9ff"] * len(elec_seu_labels),
+                    ),
+                    link=dict(
+                        source=sources,
+                        target=targets,
+                        value=values,
+                        customdata=link_percents,
+                        color=["rgba(255,153,51,0.4)" if t == idx_gas or (idx_gas_seu_start <= t < idx_elec_seu_start)
+                               else "rgba(51,153,255,0.4)"
+                               for t in targets],
+                        hovertemplate=(
+                            "%{source.label} → %{target.label}<br>"
+                            "%{value:,.0f} kWh<br>"
+                            "%{customdata:.1f} % of parent"
+                            "<extra></extra>"
+                        ),
+                    ),
+                )])
+
+                fig.update_layout(
+                    height=550,
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    font=dict(
+                        family="Arial, sans-serif",
+                        size=12,
+                        color="#000000",
+                    ),
+                    paper_bgcolor="white",
+                    plot_bgcolor="white",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+                # --- Optional drill-down: SEU -> individual meters ---
+                st.markdown("**Drill down to see individual meters for a specific SEU:**")
+
+                # Get list of SEUs that have non-zero actuals in either gas or electricity
+                all_seus = sorted(set(gas_seu.index) | set(elec_seu.index))
+                selected_seu = st.selectbox(
+                    "Select SEU for meter-level view",
+                    options=["(None)"] + all_seus,
+                    index=0,
+                    key="seu_drilldown",
+                )
+
+                if selected_seu != "(None)":
+                    # Aggregate meter-level consumption for the selected SEU in the comparison year
+                    gas_meters = (
+                        gas_df[
+                            (gas_df["Year"] == comparison_year)
+                            & (gas_df["SEU_Category"] == selected_seu)
+                        ]
+                        .groupby("Meter")["Consumption"]
+                        .sum()
+                    )
+                    elec_meters = (
+                        elec_df[
+                            (elec_df["Year"] == comparison_year)
+                            & (elec_df["SEU_Category"] == selected_seu)
+                        ]
+                        .groupby("Meter")["Consumption"]
+                        .sum()
+                    )
+
+                    gas_meters = gas_meters[gas_meters > 0]
+                    elec_meters = elec_meters[elec_meters > 0]
+
+                    if len(gas_meters) == 0 and len(elec_meters) == 0:
+                        st.info("No meter-level consumption found for this SEU in the selected comparison year.")
+                    else:
+                        st.subheader(f"🔎 Meter-level view for SEU: {selected_seu}")
+
+                        labels_d = ["Total Energy"]
+                        gas_meter_labels = [f"🔥 {m}" for m in gas_meters.index]
+                        elec_meter_labels = [f"⚡ {m}" for m in elec_meters.index]
+                        labels_d.extend(gas_meter_labels + elec_meter_labels)
+
+                        idx_total_d = 0
+                        idx_gas_meter_start = 1
+                        idx_elec_meter_start = idx_gas_meter_start + len(gas_meter_labels)
+
+                        sources_d = []
+                        targets_d = []
+                        values_d = []
+
+                        # Total -> gas meters
+                        for i, val in enumerate(gas_meters.values):
+                            sources_d.append(idx_total_d)
+                            targets_d.append(idx_gas_meter_start + i)
+                            values_d.append(float(val))
+
+                        # Total -> electricity meters
+                        for i, val in enumerate(elec_meters.values):
+                            sources_d.append(idx_total_d)
+                            targets_d.append(idx_elec_meter_start + i)
+                            values_d.append(float(val))
+
+                        # Compute percentage of parent for drill-down links
+                        parent_totals_d = {}
+                        for s, v in zip(sources_d, values_d):
+                            parent_totals_d[s] = parent_totals_d.get(s, 0) + v
+                        link_percents_d = [
+                            (val / parent_totals_d.get(src, val) * 100) if parent_totals_d.get(src, 0) else 0
+                            for src, val in zip(sources_d, values_d)
+                        ]
+
+                        fig_d = go.Figure(
+                            data=[
+                                go.Sankey(
+                                    node=dict(
+                                        pad=20,
+                                        thickness=20,
+                                        line=dict(color="black", width=0.5),
+                                        label=labels_d,
+                                        color=["#888888"]
+                                        + ["#ffe6cc"] * len(gas_meter_labels)
+                                        + ["#cce6ff"] * len(elec_meter_labels),
+                                    ),
+                                    link=dict(
+                                        source=sources_d,
+                                        target=targets_d,
+                                        value=values_d,
+                                        customdata=link_percents_d,
+                                        color=[
+                                            "rgba(255,153,51,0.4)"
+                                            if t < idx_elec_meter_start
+                                            else "rgba(51,153,255,0.4)"
+                                            for t in targets_d
+                                        ],
+                                        hovertemplate=(
+                                            "%{source.label} → %{target.label}<br>"
+                                            "%{value:,.0f} kWh<br>"
+                                            "%{customdata:.1f} % of parent"
+                                            "<extra></extra>"
+                                        ),
+                                    ),
+                                )
+                            ]
+                        )
+
+                        fig_d.update_layout(
+                            height=500,
+                            margin=dict(l=10, r=10, t=10, b=10),
+                            font=dict(
+                                family="Arial, sans-serif",
+                                size=12,
+                                color="#000000",
+                            ),
+                            paper_bgcolor="white",
+                            plot_bgcolor="white",
+                        )
+                        st.plotly_chart(fig_d, use_container_width=True)
 
             # Add a note about partial year comparison
             st.info("ℹ️ The comparison above uses climate-normalized predictions to account for partial year data and weather variations.")
