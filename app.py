@@ -22,6 +22,8 @@ if 'files_uploaded' not in st.session_state:
 
 st.set_page_config(page_title="Energy Baseline Dashboard", layout="wide")
 
+#Test changes
+
 with st.spinner('Loading the Energy Baseline Dashboard...'):
     time.sleep(2)  # Simulate loading time, adjust as needed
 
@@ -30,14 +32,6 @@ st.title("📊 Energy Baseline Dashboard – RDS Site")
 # Sidebar organization
 with st.sidebar:
     st.header("⚙️ Settings")
-    
-    # Year Selection Section (at top)
-    st.subheader("📅 Year Selection")
-    col1, col2 = st.columns(2)
-    with col1:
-        baseline_year = st.selectbox("Baseline Year", [2023, 2024], key="baseline")
-    with col2:
-        comparison_year = st.selectbox("Comparison Year", [2024, 2025], key="comparison")
     
     # File Upload Section
     st.subheader("📂 Required Files")
@@ -71,6 +65,31 @@ if all(files.values()):
         st.success("✅ Files loaded successfully")
 
         gas_df, elec_df = preprocess_data(energy_df, hdd_df, cdd_df)
+
+        # Determine available years dynamically from data
+        available_years = sorted(set(gas_df['Year'].unique()) | set(elec_df['Year'].unique()))
+        if len(available_years) < 2:
+            st.error("⚠️ Not enough distinct years in the data to perform baseline vs comparison analysis.")
+            st.stop()
+
+        # Sidebar year selection based on available years
+        with st.sidebar:
+            st.subheader("📅 Year Selection")
+            col1, col2 = st.columns(2)
+            with col1:
+                baseline_year = st.selectbox(
+                    "Baseline Year",
+                    available_years,
+                    index=0,
+                    key="baseline",
+                )
+            with col2:
+                comparison_year = st.selectbox(
+                    "Comparison Year",
+                    available_years,
+                    index=len(available_years) - 1,
+                    key="comparison",
+                )
 
         tab1, tab2, tab3, tab4 = st.tabs(["📋 General Summary", "⚡ Electricity Analysis", "🔥 Gas Analysis", "🏗️ SEU Analysis"])
 

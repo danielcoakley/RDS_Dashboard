@@ -36,6 +36,20 @@ def deduplicate_meters(df):
     return result
 
 def preprocess_data(energy_df, hdd_df, cdd_df):
+    # Work on a copy and normalise column names (handle BOM, quoted headers, spaces, etc.)
+    energy_df = energy_df.copy()
+    normalised_cols = []
+    for c in energy_df.columns:
+        name = str(c)
+        # Strip common BOM artefacts from the start of the header
+        for bom in ("\ufeff", "ï»¿"):
+            if name.startswith(bom):
+                name = name[len(bom):]
+        # Remove outer quotes and surrounding whitespace
+        name = name.strip().strip("'").strip('"')
+        normalised_cols.append(name)
+    energy_df.columns = normalised_cols
+
     # Reshape general energy data
     daily_data_rows = energy_df[energy_df['Period'] == 'Day'].copy()
     daily_data_rows['Meter'] = energy_df['Metered Sector'].shift(1)

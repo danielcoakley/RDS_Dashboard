@@ -5,3 +5,4 @@ EIDW_CDD_15.5C.csv
 /build
 /Data
 /dist
+*.pyc
