@@ -149,7 +149,20 @@ if all(files.values()):
                 gas_seu = gas_seu[gas_seu > 0]
                 elec_seu = elec_seu[elec_seu > 0]
 
-                total_actual = total_gas_actual + total_elec_actual
+                # Mains is already captured by other sub-meters; default to hiding it, with a toggle to show
+                show_mains_elec = st.checkbox(
+                    "Show Mains in electricity flow",
+                    value=False,
+                    key="sankey_show_mains",
+                    help="Mains is typically the total incoming supply; other electricity SEUs are sub-meters. Toggle to include or exclude Mains in the diagram."
+                )
+                mains_actual = float(elec_seu.get("Mains", 0))
+                if not show_mains_elec:
+                    elec_seu = elec_seu.drop("Mains", errors="ignore")
+                    total_elec_for_sankey = total_elec_actual - mains_actual
+                else:
+                    total_elec_for_sankey = total_elec_actual
+                total_actual = total_gas_actual + total_elec_for_sankey
 
                 # Icon mapping for SEU categories to make labels more intuitive.
                 # Keys align with SEU_Category values from seu_mapping.csv.
@@ -194,10 +207,10 @@ if all(files.values()):
                     sources.append(idx_total)
                     targets.append(idx_gas)
                     values.append(float(total_gas_actual))
-                if total_elec_actual > 0:
+                if total_elec_for_sankey > 0:
                     sources.append(idx_total)
                     targets.append(idx_elec)
-                    values.append(float(total_elec_actual))
+                    values.append(float(total_elec_for_sankey))
 
                 # Gas -> Gas SEUs
                 for i, (seu, val) in enumerate(gas_seu.items()):
@@ -222,7 +235,7 @@ if all(files.values()):
                     for src, val in zip(sources, values)
                 ]
 
-                # Build Sankey figure
+                # Build Sankey figure (textfont.shadow="none" removes default label shading for readability)
                 fig = go.Figure(data=[go.Sankey(
                     node=dict(
                         pad=20,
@@ -250,16 +263,18 @@ if all(files.values()):
                             "<extra></extra>"
                         ),
                     ),
+                    textfont=dict(
+                        family="Arial, sans-serif",
+                        size=15,
+                        color="#000000",
+                        shadow="none",
+                    ),
                 )])
 
                 fig.update_layout(
                     height=550,
                     margin=dict(l=10, r=10, t=10, b=10),
-                    font=dict(
-                        family="Arial, sans-serif",
-                        size=12,
-                        color="#000000",
-                    ),
+                    font=dict(family="Arial, sans-serif", size=15, color="#000000"),
                     paper_bgcolor="white",
                     plot_bgcolor="white",
                 )
@@ -368,6 +383,12 @@ if all(files.values()):
                                             "<extra></extra>"
                                         ),
                                     ),
+                                    textfont=dict(
+                                        family="Arial, sans-serif",
+                                        size=15,
+                                        color="#000000",
+                                        shadow="none",
+                                    ),
                                 )
                             ]
                         )
@@ -375,11 +396,7 @@ if all(files.values()):
                         fig_d.update_layout(
                             height=500,
                             margin=dict(l=10, r=10, t=10, b=10),
-                            font=dict(
-                                family="Arial, sans-serif",
-                                size=12,
-                                color="#000000",
-                            ),
+                            font=dict(family="Arial, sans-serif", size=15, color="#000000"),
                             paper_bgcolor="white",
                             plot_bgcolor="white",
                         )
