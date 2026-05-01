@@ -54,7 +54,7 @@
 ### Frontend
 - Select the dashboard/frontend engine that best serves the SaaS product; Streamlit is optional, not required.
 - Prefer a dedicated web frontend/dashboard architecture for landing pages, auth flows, tenant/admin UX, uploads, run history, report review, and rich visual analytics.
-- Candidate engines include Next.js/React with a charting layer such as Plotly, ECharts, Vega-Lite, or another suitable dashboard framework. Choose based on maintainability, interactivity, future extensibility, and fit with the backend API.
+- Selected direction: Next.js with React/TypeScript for the SaaS frontend/dashboard shell and Apache ECharts for rich tenant-scoped visualizations.
 - The existing Streamlit `app.py` can be replaced rather than embedded if replacement produces a cleaner SaaS architecture.
 
 ### Backend/API

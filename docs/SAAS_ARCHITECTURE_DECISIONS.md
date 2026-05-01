@@ -66,3 +66,17 @@ Implications:
 - Early API work starts in `backend/api.py`.
 - API routes must call tenant access guards before reading or mutating tenant resources.
 - Route handlers should stay thin and delegate persistence to store/service modules.
+
+## ADR-006: Use Next.js and Apache ECharts for the SaaS Dashboard
+
+Decision: use Next.js with React and TypeScript for the SaaS frontend/dashboard shell, with Apache ECharts as the primary visualization engine.
+
+Rationale:
+- Next.js provides a mature React structure for landing pages, authenticated app pages, routing, and future rendering choices.
+- ECharts supports rich interactive dashboards and future portfolio-level visualizations without tying the product to Streamlit.
+- This split keeps the Python backend focused on API, tenant security, orchestration, and analytics services.
+
+Implications:
+- Frontend work should live under `frontend/`.
+- The frontend should consume FastAPI contracts rather than importing Python analytics code directly.
+- `app.py` can be retired once the new frontend covers the required workflows.

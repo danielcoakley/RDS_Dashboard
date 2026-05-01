@@ -6,7 +6,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 
 1. Keep MVP product requirements and domain model documented.
 2. Keep architecture decisions documented and update them when stack choices are made.
-3. Define dashboard/frontend engine selection criteria and preferred direction.
+3. Define dashboard/frontend engine selection criteria and preferred direction. Next.js with React/TypeScript and Apache ECharts is selected in `docs/DASHBOARD_ENGINE_DECISION.md`.
 4. Add local domain and RBAC scaffolding with tests.
 5. Identify current shared local-file couplings that must become tenant-scoped.
 
@@ -16,7 +16,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 2. Choose API framework and database migration tool. FastAPI is the API boundary, with the local migration runner retained until PostgreSQL migrations are introduced.
 3. Add database schema for users, organizations, memberships, sites, and meters. Initial local SQLite-compatible scaffolding exists in `backend/migrations/001_tenant_skeleton.sql`, with repository helpers in `backend/store.py` and owner-organization onboarding in `backend/onboarding.py`.
 4. Add tenant-scoped API/service access checks. Initial service-boundary guards exist in `backend/access_control.py`.
-5. Add basic dashboard shell after login. The API now exposes local owner-organization onboarding, user organization listing, and tenant-guarded site/meter listing routes that can back the first authenticated shell.
+5. Add basic dashboard shell after login. Use the selected Next.js frontend direction; the API now exposes local owner-organization onboarding, user organization listing, and tenant-guarded site/meter listing routes that can back the first authenticated shell.
 6. Add integration tests proving two tenants cannot see each other's resources.
 
 ## Milestone 2: Ingestion and Run Orchestration
