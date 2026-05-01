@@ -80,3 +80,17 @@ Implications:
 - Frontend work should live under `frontend/`.
 - The frontend should consume FastAPI contracts rather than importing Python analytics code directly.
 - `app.py` can be retired once the new frontend covers the required workflows.
+
+## ADR-007: Use Clerk for MVP Auth and Organizations
+
+Decision: use Clerk as the preferred MVP authentication and organization provider.
+
+Rationale:
+- Clerk aligns with the selected Next.js frontend direction and provides organization-oriented flows.
+- Organization roles can map to the platform Owner, Manager, and Viewer RBAC model.
+- Clerk session tokens can be verified by FastAPI later through JWT/JWKS validation.
+
+Implications:
+- `backend/auth_context.py` remains a temporary credential-free seam until Clerk environments are configured.
+- Backend API checks remain authoritative for tenant data access.
+- The frontend can use Clerk for signup, login, organization switching, and invitations once dependencies and keys are added.

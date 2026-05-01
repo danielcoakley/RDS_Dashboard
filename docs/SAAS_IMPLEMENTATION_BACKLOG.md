@@ -12,7 +12,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 
 ## Milestone 1: Auth and Tenant Skeleton
 
-1. Choose auth provider and session approach. Temporary request-user context exists in `backend/auth_context.py` and should be replaced by the selected provider integration.
+1. Choose auth provider and session approach. Clerk is selected in `docs/AUTH_PROVIDER_DECISION.md`; temporary request-user context exists in `backend/auth_context.py` and should be replaced by verified Clerk session claims.
 2. Choose API framework and database migration tool. FastAPI is the API boundary, with the local migration runner retained until PostgreSQL migrations are introduced.
 3. Add database schema for users, organizations, memberships, sites, and meters. Initial local SQLite-compatible scaffolding exists in `backend/migrations/001_tenant_skeleton.sql`, with repository helpers in `backend/store.py` and owner-organization onboarding in `backend/onboarding.py`.
 4. Add tenant-scoped API/service access checks. Initial service-boundary guards exist in `backend/access_control.py`.
