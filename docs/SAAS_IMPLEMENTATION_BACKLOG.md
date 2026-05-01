@@ -23,7 +23,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 
 1. Replace shared `seu_mapping.csv` behavior with tenant-scoped upload storage.
 2. Add upload records and storage-key generation.
-3. Wrap current analytics pipeline behind a run service.
+3. Wrap current analytics pipeline behind a run service. Initial analytics service boundary exists in `analytics/service.py`.
 4. Add run status lifecycle and report artifact records.
 5. Add end-to-end tests from upload to report retrieval.
 
