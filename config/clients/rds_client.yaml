@@ -1,0 +1,39 @@
+client:
+  id: rds_client
+  name: RDS Site
+  timezone: Europe/London
+  reporting_currency: GBP
+
+site:
+  name: RDS Site
+  floor_area_m2: null
+  activity_metric: null
+
+meters:
+  - meter_id: elec_main
+    display_name: Main Electricity
+    commodity: electricity
+    unit: kWh
+    source_column: Main Electricity
+    is_seu: true
+  - meter_id: gas_main
+    display_name: Main Gas
+    commodity: gas
+    unit: kWh
+    source_column: Main Gas
+    is_seu: true
+
+analysis:
+  baseline_start: null
+  baseline_end: null
+  reporting_start: null
+  reporting_end: null
+  weather_normalisation: true
+  hdd_base_temperature: 15.5
+  cdd_base_temperature: 22.0
+  outlier_removal: true
+
+iso50001:
+  organisation_context: ""
+  energy_policy_reference: ""
+  audit_notes: ""
