@@ -24,3 +24,12 @@
 - `src/reporting.py`: `calculate_consumption_summary`, `generate_iso_summary`
 - `src/enpi_model.py`: `build_baseline_model`, `calculate_enpi`
 - Added tests in `tests/` for config loading/validation and standardisation behaviors.
+
+## SaaS platform planning update (2026-05-01)
+- Added a dedicated SaaS transition plan with:
+  - current-state assessment,
+  - proposed target architecture,
+  - prioritized epic-level issue backlog,
+  - milestone plan from alignment through pilot readiness,
+  - immediate next actions and risk mitigations.
+- See `docs/SAAS_PLATFORM_PLAN.md`.
