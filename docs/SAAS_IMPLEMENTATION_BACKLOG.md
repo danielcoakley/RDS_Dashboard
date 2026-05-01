@@ -15,7 +15,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 2. Choose API framework and database migration tool. FastAPI is the API boundary, with the local migration runner retained until PostgreSQL migrations are introduced.
 3. Add database schema for users, organizations, memberships, sites, and meters. Initial local SQLite-compatible scaffolding exists in `backend/migrations/001_tenant_skeleton.sql`, with repository helpers in `backend/store.py` and owner-organization onboarding in `backend/onboarding.py`.
 4. Add tenant-scoped API/service access checks. Initial service-boundary guards exist in `backend/access_control.py`.
-5. Add basic dashboard shell after login.
+5. Add basic dashboard shell after login. The API now exposes a local owner-organization onboarding route that can back the first authenticated shell.
 6. Add integration tests proving two tenants cannot see each other's resources.
 
 ## Milestone 2: Ingestion and Run Orchestration
