@@ -16,6 +16,7 @@ from .domain import (
 )
 from .database import apply_migrations, connect_database, initialize_database
 from .rbac import Action, can_access_organization, can_perform
+from .onboarding import OrganizationOnboardingResult, create_owner_organization
 from .store import SaaSStore
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "Membership",
     "Meter",
     "Organization",
+    "OrganizationOnboardingResult",
     "Report",
     "Role",
     "Run",
@@ -38,6 +40,7 @@ __all__ = [
     "can_access_organization",
     "can_perform",
     "connect_database",
+    "create_owner_organization",
     "initialize_database",
     "require_permission",
     "require_resource_scope",
