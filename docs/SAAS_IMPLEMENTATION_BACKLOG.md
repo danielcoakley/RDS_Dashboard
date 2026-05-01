@@ -6,8 +6,9 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 
 1. Keep MVP product requirements and domain model documented.
 2. Keep architecture decisions documented and update them when stack choices are made.
-3. Add local domain and RBAC scaffolding with tests.
-4. Identify current shared local-file couplings that must become tenant-scoped.
+3. Define dashboard/frontend engine selection criteria and preferred direction.
+4. Add local domain and RBAC scaffolding with tests.
+5. Identify current shared local-file couplings that must become tenant-scoped.
 
 ## Milestone 1: Auth and Tenant Skeleton
 
@@ -31,7 +32,8 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 1. Draft landing page copy around ISO 50001 pain points and outcomes.
 2. Build landing page and conversion CTA.
 3. Build app pages for uploads, runs, reports, tenant settings, and user management.
-4. Add notifications for run completion.
+4. Build rich tenant-scoped visualization views in the selected dashboard engine.
+5. Add notifications for run completion.
 
 ## Milestone 4: Pilot Readiness
 

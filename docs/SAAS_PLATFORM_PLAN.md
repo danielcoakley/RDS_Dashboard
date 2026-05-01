@@ -3,14 +3,17 @@
 ## 1) Current-State Review
 
 ### Architecture and product shape today
-- The app is currently a **single-tenant Streamlit dashboard** with all core UI and workflow in one entry-point (`app.py`).
-- The app allows users to upload CSVs for energy, HDD, CDD, and SEU mapping, then performs baseline and comparison analysis.
+- The repo currently contains a **single-tenant Streamlit dashboard** with all legacy UI and workflow in one entry-point (`app.py`).
+- The SaaS direction no longer depends on Streamlit as the visualization or dashboard engine. The current UI can be overhauled, replaced, or retired.
+- Current backend SaaS scaffolding exists in `backend/`, including FastAPI app setup, tenant domain models, RBAC guards, SQLite-compatible migration scaffolding, onboarding, and tenant-scoped listing routes.
+- The legacy app allows users to upload CSVs for energy, HDD, CDD, and SEU mapping, then performs baseline and comparison analysis.
 - Client selection is file-based from `config/clients/*.yaml`, which is a good foundation for future tenant templates.
 
 ### Strengths to preserve
 - Existing domain logic for ISO 50001 support is already modularized in `src/` (`config_loader`, `data_standardisation`, `data_quality`, `reporting`, `enpi_model`).
 - Existing tests cover config and standardization modules.
 - Data processing and EnPI-style reporting already exist and can be wrapped into reusable tenant services.
+- New backend scaffolding has started establishing tenant isolation, RBAC, API boundaries, and local schema contracts.
 
 ### Gaps blocking SaaS readiness
 - No authentication, authorization, or account model.
@@ -19,6 +22,7 @@
 - No marketing/landing experience (product currently opens directly into internal analytics UI).
 - No billing/subscription model, onboarding flow, or role-based access control.
 - No production deployment architecture for multi-client scale, auditability, and security.
+- Legacy visualization and workflow are tightly coupled to Streamlit and `app.py`; this should be treated as replaceable UI code, not a constraint.
 
 ---
 
@@ -48,9 +52,10 @@
 ## 3) Proposed Technical Architecture
 
 ### Frontend
-- Keep Streamlit for internal analytics workflows short-term.
-- Add a dedicated **web frontend** (e.g., Next.js) for landing page + auth flows + tenant/admin UX.
-- Optionally embed or link Streamlit analytics until migration to a unified web app is complete.
+- Select the dashboard/frontend engine that best serves the SaaS product; Streamlit is optional, not required.
+- Prefer a dedicated web frontend/dashboard architecture for landing pages, auth flows, tenant/admin UX, uploads, run history, report review, and rich visual analytics.
+- Candidate engines include Next.js/React with a charting layer such as Plotly, ECharts, Vega-Lite, or another suitable dashboard framework. Choose based on maintainability, interactivity, future extensibility, and fit with the backend API.
+- The existing Streamlit `app.py` can be replaced rather than embedded if replacement produces a cleaner SaaS architecture.
 
 ### Backend/API
 - Introduce an API layer (FastAPI recommended) to own:
@@ -97,10 +102,12 @@
 4. Expand tests from unit to integration for full run lifecycle.
 
 ## Epic E — SaaS Web UX
-1. Build landing page and feature pages.
-2. Build signup/login/reset pages.
-3. Build app shell (tenant switcher, nav, user menu).
-4. Build upload/run/report history views.
+1. Evaluate and choose the dashboard/frontend engine for the SaaS UX.
+2. Build landing page and feature pages.
+3. Build signup/login/reset pages.
+4. Build app shell (tenant switcher, nav, user menu).
+5. Build upload/run/report history views.
+6. Build rich tenant-scoped visualization views using the selected dashboard engine.
 
 ## Epic F — Compliance, Governance, and Billing
 1. Add audit log UI and export.
@@ -116,6 +123,7 @@
   - Product requirements doc for SaaS MVP.
   - Canonical domain model (User, Organization, Site, Meter, Upload, Run, Report).
   - Target architecture decision record.
+  - Dashboard/frontend engine decision criteria and preferred direction.
 - Exit criteria:
   - Team sign-off on MVP scope and implementation stack.
 
@@ -123,7 +131,7 @@
 - Deliverables:
   - Functional signup/login and organization creation.
   - RBAC seed roles and tenant-scoped database schema.
-  - Basic dashboard shell after login.
+  - Basic dashboard shell after login using the selected frontend/dashboard direction.
 - Exit criteria:
   - Two test tenants can log in and cannot see each other’s data.
 
@@ -139,6 +147,7 @@
 - Deliverables:
   - Public landing page and conversion CTAs.
   - In-app pages for uploads, runs, reports, settings.
+  - Tenant-scoped analytics visualizations in the selected dashboard engine.
   - Email notifications for run completion.
 - Exit criteria:
   - Pilot users can self-serve core workflow without operator intervention.
@@ -155,19 +164,20 @@
 
 ## 6) Immediate Next Actions (next 10 working days)
 1. Split current repo into clear boundaries: `frontend/`, `backend/`, `analytics/` (or equivalent).
-2. Create initial DB schema and migration setup.
-3. Implement auth and organization models.
-4. Refactor file I/O paths so no shared local mutable files are needed.
-5. Add integration tests for tenant isolation and run lifecycle.
-6. Draft landing page copy oriented to ISO 50001 pain points and outcomes.
+2. Evaluate dashboard/frontend engine options and choose the best fit for SaaS workflows and future visual enhancements.
+3. Create initial DB schema and migration setup.
+4. Implement auth and organization models.
+5. Refactor file I/O paths so no shared local mutable files are needed.
+6. Add integration tests for tenant isolation and run lifecycle.
+7. Draft landing page copy oriented to ISO 50001 pain points and outcomes.
 
 ---
 
 ## 7) Risks and Mitigations
 - Risk: analytics pipeline assumptions tied to one client format.
   - Mitigation: enforce a tenant-aware canonical ingestion schema and mapping layer.
-- Risk: Streamlit-centric UX limits long-term SaaS UX flexibility.
-  - Mitigation: treat Streamlit as transitional analytics UI behind authenticated shell.
+- Risk: over-preserving the legacy Streamlit UI slows SaaS architecture and visualization improvements.
+  - Mitigation: treat Streamlit as replaceable legacy UI and choose the dashboard engine that best supports the product roadmap.
 - Risk: compliance/security debt during rapid build.
   - Mitigation: add security and audit acceptance criteria to every milestone.
 

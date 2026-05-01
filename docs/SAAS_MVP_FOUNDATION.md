@@ -14,6 +14,7 @@ Users can sign up, create or join an organization, upload tenant-scoped energy a
 
 ### MVP capabilities
 - Public landing page with ISO 50001 value proposition and conversion path.
+- Dedicated SaaS dashboard experience using the selected frontend/visualization engine.
 - Authentication flows for signup, login, logout, and password reset.
 - Organization creation, invitations, and membership management.
 - RBAC roles: Owner, Manager, Viewer.
@@ -23,7 +24,7 @@ Users can sign up, create or join an organization, upload tenant-scoped energy a
 
 ### Non-goals for MVP
 - Billing, dunning, SSO/SCIM, white-labeling, and enterprise connectors.
-- Full migration away from Streamlit analytics UI.
+- Preserving the current Streamlit UI for its own sake.
 - Production object storage or auth providers without explicit credentials and deployment decisions.
 
 ## Canonical Domain Model
@@ -64,5 +65,5 @@ A generated artifact from a run. Reports record report type, storage key, creati
 
 - Two organizations can contain similarly named sites, meters, uploads, runs, and reports without id collisions or shared file paths.
 - A user with membership in one organization cannot access resources from another organization.
-- The current Streamlit dashboard still runs for the existing single-tenant workflow.
+- Useful analytics behavior is preserved through reusable analytics services or equivalent SaaS workflows, even if the legacy Streamlit app is replaced.
 - New SaaS scaffolding is testable locally without live auth, database, storage, or billing services.

@@ -2,25 +2,26 @@
 
 This records initial Milestone 0 architecture decisions for the SaaS expansion.
 
-## ADR-001: Keep Streamlit Analytics During SaaS Shell Build
+## ADR-001: Treat Streamlit as Replaceable Legacy UI
 
-Decision: keep the current Streamlit dashboard as the short-term analytics UI while platform boundaries are added around it.
+Decision: do not require Streamlit as the SaaS dashboard or visualization engine. The current `app.py` Streamlit dashboard is legacy UI that may be overhauled, replaced, or retired.
 
 Rationale:
-- Existing analytics behavior is valuable and should not be disrupted during tenant/auth foundation work.
-- The SaaS shell can authenticate users and route them to analytics while the analytics code is gradually extracted.
+- Existing analytics logic is valuable, but the Streamlit UI should not constrain SaaS architecture, UX, or visualization capabilities.
+- A purpose-built dashboard/frontend can better support tenant workflows, richer visualization, collaboration, and future enhancements.
 
 Implications:
-- Do not rewrite `app.py` as part of Milestone 0 or early Milestone 1 work.
-- New tenant-aware services should wrap or call analytics functions rather than duplicating them.
+- Future work may replace `app.py` entirely when a better SaaS frontend/dashboard engine is selected.
+- Preserve useful behavior by extracting analytics and reporting logic, not by preserving the current Streamlit workflow.
+- Frontend decisions should optimize maintainability, interactivity, tenant UX, and long-term extensibility.
 
 ## ADR-002: Add Python Backend Boundary Before External Services
 
 Decision: introduce a local Python backend boundary for domain models, RBAC, and service contracts before adding FastAPI, PostgreSQL, object storage, or auth-provider dependencies.
 
 Rationale:
-- The repo is currently a Python Streamlit project.
-- Standard-library scaffolding can be validated locally and keeps the current app runnable.
+- The repo now has Python backend scaffolding around the existing analytics modules.
+- Standard-library scaffolding can be validated locally while frontend/dashboard choices are evaluated separately.
 - External dependencies should be added only when their interfaces and tests are clear.
 
 Implications:
@@ -40,17 +41,18 @@ Implications:
 - Tests must cover cross-tenant access denial.
 - Shared mutable files such as `seu_mapping.csv` must be replaced by tenant-scoped storage in future slices.
 
-## ADR-004: Use Local Contracts Before Framework Commitments
+## ADR-004: Use Local Contracts Before Provider Commitments
 
-Decision: define local domain and access contracts first; defer final choices for auth provider, job queue, object storage SDK, and web frontend framework until Milestone 1 planning.
+Decision: define local domain and access contracts first; defer final choices for auth provider, job queue, object storage SDK, and dashboard/frontend framework until Milestone 1 planning.
 
 Rationale:
-- The plan recommends FastAPI, PostgreSQL, S3-compatible storage, and a dedicated web frontend, but provider choices still need implementation context.
+- The plan recommends FastAPI, PostgreSQL, S3-compatible storage, and a dedicated SaaS frontend/dashboard experience, but provider and visualization-engine choices still need implementation context.
 - Local contracts let the team validate tenant isolation without committing to provider-specific APIs too early.
 
 Implications:
 - Milestone 1 should introduce the first concrete API/database/auth choices.
 - Contracts added in Milestone 0 should stay provider-neutral.
+- Dashboard/frontend selection should be made intentionally and should not default to Streamlit.
 
 ## ADR-005: Use FastAPI for the Backend API Boundary
 
