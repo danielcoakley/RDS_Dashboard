@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { EnergyPerformanceChart } from "../../components/EnergyPerformanceChart";
 
 const meters = [
@@ -16,6 +17,13 @@ export default function DashboardPage() {
   return (
     <main className="appShell">
       <aside className="sidebar">
+        <Link href="/" className="sidebarBrandRow" aria-label="RDS Energy — return to home">
+          <span className="sidebarBrandMark" aria-hidden />
+          <div className="sidebarBrandMeta">
+            <strong>RDS Energy</strong>
+            <span className="sidebarTagline">Marketing &amp; overview</span>
+          </div>
+        </Link>
         <div className="tenantBlock">
           <span className="tenantLabel">Tenant</span>
           <strong>RDS Site</strong>

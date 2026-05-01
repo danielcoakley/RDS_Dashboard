@@ -3,7 +3,7 @@
 import ReactECharts from "echarts-for-react";
 
 const option = {
-  color: ["#1f7a6d", "#d85f3f"],
+  color: ["#12c2e0", "#f97316"],
   tooltip: {
     trigger: "axis"
   },
