@@ -4,6 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from utils import preprocess_data, evaluate_meter_models, plot_monthly_comparison, add_percent_savings, style_summary_table
+from src.config_loader import load_client_config
+from src.data_standardisation import load_uploaded_data, standardise_meter_data
+from src.data_quality import clean_meter_data, detect_data_gaps, detect_outliers
+from src.reporting import calculate_consumption_summary, generate_iso_summary
+from src.enpi_model import build_baseline_model, calculate_enpi
 import time
 
 print("Starting Energy Baseline Dashboard...")
@@ -33,6 +38,11 @@ st.title("📊 Energy Baseline Dashboard – RDS Site")
 # Sidebar organization
 with st.sidebar:
     st.header("⚙️ Settings")
+
+    config_files = sorted([p.name for p in __import__("pathlib").Path("config/clients").glob("*.yaml")])
+    default_config = "rds_client.yaml" if "rds_client.yaml" in config_files else (config_files[0] if config_files else None)
+    selected_config = st.selectbox("Client Config", options=config_files if config_files else ["<none>"], index=(config_files.index(default_config) if default_config in config_files else 0))
+    client_config = load_client_config(f"config/clients/{selected_config}") if config_files else None
     
     # File Upload Section
     st.subheader("📂 Required Files")
@@ -65,6 +75,9 @@ if all(files.values()):
 
         st.success("✅ Files loaded successfully")
 
+        standardised_df = standardise_meter_data(load_uploaded_data(files["Energy Data"]), client_config) if client_config else pd.DataFrame()
+        standardised_df = clean_meter_data(standardised_df, client_config) if not standardised_df.empty else standardised_df
+
         gas_df, elec_df = preprocess_data(energy_df, hdd_df, cdd_df)
 
         # Determine available years dynamically from data
@@ -95,6 +108,17 @@ if all(files.values()):
         tab1, tab2, tab3, tab4 = st.tabs(["📋 General Summary", "⚡ Electricity Analysis", "🔥 Gas Analysis", "🏗️ SEU Analysis"])
 
         with tab1:
+            if not standardised_df.empty:
+                st.subheader("🧱 Standardised Data Preview")
+                st.dataframe(standardised_df.head(20), use_container_width=True)
+                gaps_df = detect_data_gaps(standardised_df)
+                outliers_df = detect_outliers(standardised_df, client_config)
+                st.write(f"Data quality: {len(gaps_df)} gap(s), {len(outliers_df)} outlier row(s)")
+                st.dataframe(calculate_consumption_summary(standardised_df), use_container_width=True)
+                st.json(generate_iso_summary(standardised_df, client_config))
+                st.dataframe(calculate_enpi(standardised_df, client_config), use_container_width=True)
+                _ = build_baseline_model(standardised_df, config=client_config)
+
             # Get the model predictions for comparison
             gas_summary = evaluate_meter_models(gas_df, train_year=baseline_year, test_year=comparison_year)
             elec_summary = evaluate_meter_models(elec_df, train_year=baseline_year, test_year=comparison_year)
