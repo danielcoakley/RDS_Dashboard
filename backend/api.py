@@ -28,6 +28,12 @@ class OwnerOrganizationResponse(BaseModel):
     role: str
 
 
+class OrganizationSummary(BaseModel):
+    id: str
+    name: str
+    slug: str
+
+
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
@@ -60,6 +66,16 @@ def onboard_owner_organization(
     )
 
 
+def list_user_organization_summaries(
+    user_id: str,
+    store: SaaSStore,
+) -> list[OrganizationSummary]:
+    return [
+        OrganizationSummary(id=organization.id, name=organization.name, slug=organization.slug)
+        for organization in store.list_user_organizations(user_id)
+    ]
+
+
 def create_app(store: SaaSStore | None = None) -> FastAPI:
     app = FastAPI(
         title=API_TITLE,
@@ -77,6 +93,14 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     )
     def onboard_owner(payload: OwnerOrganizationCreate, request: Request) -> OwnerOrganizationResponse:
         return onboard_owner_organization(payload, request.app.state.store)
+
+    @app.get(
+        "/users/{user_id}/organizations",
+        response_model=list[OrganizationSummary],
+        tags=["organizations"],
+    )
+    def user_organizations(user_id: str, request: Request) -> list[OrganizationSummary]:
+        return list_user_organization_summaries(user_id, request.app.state.store)
 
     return app
 
