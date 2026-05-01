@@ -37,7 +37,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 
 ## Milestone 4: Pilot Readiness
 
-1. Add audit events for upload, config change, run execution, and report access. Initial audit-event schema and run orchestration events exist in `backend/migrations/003_audit_events.sql`.
+1. Add audit events for upload, config change, run execution, and report access. Initial audit-event schema, run orchestration events, and tenant-guarded audit listing API exist.
 2. Add monitoring, backup, and alerting plan.
 3. Run security review and threat model.
 4. Prepare pilot onboarding and support playbook.

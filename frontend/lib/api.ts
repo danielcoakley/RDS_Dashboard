@@ -50,6 +50,16 @@ export type ReportSummary = {
   is_published: boolean;
 };
 
+export type AuditEventSummary = {
+  id: string;
+  organization_id: string;
+  actor_user_id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  metadata_json: string;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 async function apiFetch<T>(path: string, userId: string, init?: RequestInit): Promise<T> {
@@ -111,4 +121,11 @@ export function getOrganizationReports(
 ): Promise<ReportSummary[]> {
   const query = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
   return apiFetch<ReportSummary[]>(`/organizations/${organizationId}/reports${query}`, userId);
+}
+
+export function getOrganizationAuditEvents(
+  userId: string,
+  organizationId: string
+): Promise<AuditEventSummary[]> {
+  return apiFetch<AuditEventSummary[]>(`/organizations/${organizationId}/audit-events`, userId);
 }

@@ -13,6 +13,7 @@ class Action(str, Enum):
     MANAGE_REPORTS = "manage_reports"
     MANAGE_MEMBERS = "manage_members"
     MANAGE_ORGANIZATION = "manage_organization"
+    VIEW_AUDIT = "view_audit"
 
 
 _ROLE_ACTIONS: dict[Role, set[Action]] = {
@@ -23,12 +24,14 @@ _ROLE_ACTIONS: dict[Role, set[Action]] = {
         Action.MANAGE_REPORTS,
         Action.MANAGE_MEMBERS,
         Action.MANAGE_ORGANIZATION,
+        Action.VIEW_AUDIT,
     },
     Role.MANAGER: {
         Action.READ,
         Action.MANAGE_UPLOADS,
         Action.MANAGE_RUNS,
         Action.MANAGE_REPORTS,
+        Action.VIEW_AUDIT,
     },
     Role.VIEWER: {Action.READ},
 }

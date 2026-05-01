@@ -68,6 +68,16 @@ class ReportSummary(BaseModel):
     is_published: bool
 
 
+class AuditEventSummary(BaseModel):
+    id: str
+    organization_id: str
+    actor_user_id: str
+    action: str
+    resource_type: str
+    resource_id: str
+    metadata_json: str
+
+
 class LocalAnalysisRunCreate(BaseModel):
     site_id: str
     upload_id: str
@@ -203,6 +213,31 @@ def list_report_summaries(
     ]
 
 
+def list_audit_event_summaries(
+    user_id: str,
+    organization_id: str,
+    store: SaaSStore,
+) -> list[AuditEventSummary]:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.VIEW_AUDIT,
+    )
+    return [
+        AuditEventSummary(
+            id=event["id"],
+            organization_id=event["organization_id"],
+            actor_user_id=event["actor_user_id"],
+            action=event["action"],
+            resource_type=event["resource_type"],
+            resource_id=event["resource_id"],
+            metadata_json=event["metadata_json"],
+        )
+        for event in store.list_audit_events(organization_id)
+    ]
+
+
 def execute_local_analysis_run(
     user_id: str,
     organization_id: str,
@@ -300,6 +335,18 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         run_id: str | None = None,
     ) -> list[ReportSummary]:
         return list_report_summaries(user.id, organization_id, request.app.state.store, run_id=run_id)
+
+    @app.get(
+        "/organizations/{organization_id}/audit-events",
+        response_model=list[AuditEventSummary],
+        tags=["audit"],
+    )
+    def organization_audit_events(
+        organization_id: str,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
+    ) -> list[AuditEventSummary]:
+        return list_audit_event_summaries(user.id, organization_id, request.app.state.store)
 
     @app.post(
         "/organizations/{organization_id}/runs/execute-local",
