@@ -16,6 +16,7 @@ from .domain import (
 )
 from .database import apply_migrations, connect_database, initialize_database
 from .rbac import Action, can_access_organization, can_perform
+from .store import SaaSStore
 
 __all__ = [
     "Action",
@@ -27,6 +28,7 @@ __all__ = [
     "Role",
     "Run",
     "RunStatus",
+    "SaaSStore",
     "Site",
     "TenantContext",
     "Upload",
