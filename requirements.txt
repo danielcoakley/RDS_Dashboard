@@ -4,3 +4,4 @@ scikit-learn>=1.0
 matplotlib>=3.5
 pyinstaller>=6.3.0
 plotly>=5.0
+pytest>=8.0
