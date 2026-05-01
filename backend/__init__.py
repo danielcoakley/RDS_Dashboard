@@ -18,12 +18,15 @@ from .domain import (
 from .database import apply_migrations, connect_database, initialize_database
 from .rbac import Action, can_access_organization, can_perform
 from .onboarding import OrganizationOnboardingResult, create_owner_organization
+from .run_orchestration import AnalysisRunOutcome, AnalysisRunRequest, execute_analysis_run
 from .store import SaaSStore
 from .storage_keys import report_storage_key, safe_key_part, upload_storage_key
 
 __all__ = [
     "Action",
     "AccessDenied",
+    "AnalysisRunOutcome",
+    "AnalysisRunRequest",
     "Membership",
     "Meter",
     "Organization",
@@ -44,6 +47,7 @@ __all__ = [
     "connect_database",
     "create_app",
     "create_owner_organization",
+    "execute_analysis_run",
     "initialize_database",
     "require_permission",
     "require_resource_scope",
