@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import Depends, FastAPI, Request
+import pandas as pd
 from pydantic import BaseModel
 
 from .access_control import require_permission
@@ -9,6 +12,7 @@ from .database import initialize_database
 from .domain import Organization, User
 from .onboarding import create_owner_organization
 from .rbac import Action
+from .run_orchestration import AnalysisRunRequest, execute_analysis_run
 from .store import SaaSStore
 
 
@@ -53,6 +57,25 @@ class MeterSummary(BaseModel):
     unit: str
     source_column: str
     is_seu: bool
+
+
+class LocalAnalysisRunCreate(BaseModel):
+    site_id: str
+    upload_id: str
+    run_id: str
+    report_id: str
+    filename: str
+    rows: list[dict[str, Any]]
+    client_config: dict[str, Any]
+
+
+class LocalAnalysisRunResponse(BaseModel):
+    upload_id: str
+    run_id: str
+    report_id: str
+    run_status: str
+    report_storage_key: str
+    iso_summary: dict[str, Any]
 
 
 def health_check() -> dict[str, str]:
@@ -146,6 +169,37 @@ def list_meter_summaries(
     ]
 
 
+def execute_local_analysis_run(
+    user_id: str,
+    organization_id: str,
+    payload: LocalAnalysisRunCreate,
+    store: SaaSStore,
+) -> LocalAnalysisRunResponse:
+    outcome = execute_analysis_run(
+        store,
+        AnalysisRunRequest(
+            user_id=user_id,
+            organization_id=organization_id,
+            site_id=payload.site_id,
+            upload_id=payload.upload_id,
+            run_id=payload.run_id,
+            report_id=payload.report_id,
+            filename=payload.filename,
+            raw_meter_data=pd.DataFrame(payload.rows),
+            client_config=payload.client_config,
+        ),
+    )
+    run_row = store.list_runs(organization_id, site_id=payload.site_id)[0]
+    return LocalAnalysisRunResponse(
+        upload_id=outcome.upload.id,
+        run_id=outcome.run.id,
+        report_id=outcome.report.id,
+        run_status=run_row["status"],
+        report_storage_key=outcome.report.storage_key,
+        iso_summary=outcome.analytics.iso_summary,
+    )
+
+
 def create_app(store: SaaSStore | None = None) -> FastAPI:
     app = FastAPI(
         title=API_TITLE,
@@ -199,6 +253,19 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         site_id: str | None = None,
     ) -> list[MeterSummary]:
         return list_meter_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
+
+    @app.post(
+        "/organizations/{organization_id}/runs/execute-local",
+        response_model=LocalAnalysisRunResponse,
+        tags=["runs"],
+    )
+    def organization_execute_local_run(
+        organization_id: str,
+        payload: LocalAnalysisRunCreate,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
+    ) -> LocalAnalysisRunResponse:
+        return execute_local_analysis_run(user.id, organization_id, payload, request.app.state.store)
 
     return app
 
