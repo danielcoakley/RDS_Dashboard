@@ -51,3 +51,16 @@ Rationale:
 Implications:
 - Milestone 1 should introduce the first concrete API/database/auth choices.
 - Contracts added in Milestone 0 should stay provider-neutral.
+
+## ADR-005: Use FastAPI for the Backend API Boundary
+
+Decision: use FastAPI for the SaaS backend API boundary.
+
+Rationale:
+- The SaaS plan recommends FastAPI for auth/session handling, tenant CRUD, run orchestration, and audit events.
+- FastAPI fits the current Python codebase and can call the existing analytics modules without a language boundary.
+
+Implications:
+- Early API work starts in `backend/api.py`.
+- API routes must call tenant access guards before reading or mutating tenant resources.
+- Route handlers should stay thin and delegate persistence to store/service modules.

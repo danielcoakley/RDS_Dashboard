@@ -1,6 +1,7 @@
 """Backend scaffolding for the SaaS platform boundary."""
 
 from .access_control import AccessDenied, TenantContext, require_permission, require_resource_scope
+from .api import create_app
 from .domain import (
     Membership,
     Meter,
@@ -40,6 +41,7 @@ __all__ = [
     "can_access_organization",
     "can_perform",
     "connect_database",
+    "create_app",
     "create_owner_organization",
     "initialize_database",
     "require_permission",
