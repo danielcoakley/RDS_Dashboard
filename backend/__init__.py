@@ -2,7 +2,7 @@
 
 from .access_control import AccessDenied, TenantContext, require_permission, require_resource_scope
 from .api import create_app
-from .auth_context import AuthenticatedUser, request_user_from_header
+from .auth_context import AuthenticatedUser, request_user_from_header, user_from_clerk_claims
 from .domain import (
     Membership,
     Meter,
@@ -57,4 +57,5 @@ __all__ = [
     "report_storage_key",
     "safe_key_part",
     "upload_storage_key",
+    "user_from_clerk_claims",
 ]

@@ -18,6 +18,7 @@ Use **Clerk** as the preferred MVP authentication and organization provider for 
 - Map Clerk user id to `users.id`.
 - Map Clerk organization id to `organizations.id`.
 - Map Clerk organization role/permission claims to platform RBAC roles.
+- Initial claim-to-user mapping exists in `backend/auth_context.py`; JWT verification is intentionally not wired until Clerk environment values exist.
 
 ## Guardrails
 
