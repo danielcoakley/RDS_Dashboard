@@ -13,7 +13,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 
 1. Choose auth provider and session approach.
 2. Choose API framework and database migration tool.
-3. Add database schema for users, organizations, memberships, sites, and meters.
+3. Add database schema for users, organizations, memberships, sites, and meters. Initial local SQLite-compatible scaffolding exists in `backend/migrations/001_tenant_skeleton.sql`.
 4. Add tenant-scoped API/service access checks.
 5. Add basic dashboard shell after login.
 6. Add integration tests proving two tenants cannot see each other's resources.

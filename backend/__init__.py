@@ -13,6 +13,7 @@ from .domain import (
     UploadStatus,
     User,
 )
+from .database import apply_migrations, connect_database, initialize_database
 from .rbac import Action, can_access_organization, can_perform
 
 __all__ = [
@@ -28,6 +29,9 @@ __all__ = [
     "Upload",
     "UploadStatus",
     "User",
+    "apply_migrations",
     "can_access_organization",
     "can_perform",
+    "connect_database",
+    "initialize_database",
 ]
