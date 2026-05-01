@@ -28,7 +28,10 @@ def test_migrations_are_idempotent():
 
     assert apply_migrations(conn) == []
     versions = conn.execute("SELECT version FROM schema_migrations").fetchall()
-    assert [row["version"] for row in versions] == ["001_tenant_skeleton"]
+    assert [row["version"] for row in versions] == [
+        "001_tenant_skeleton",
+        "002_runs_and_reports",
+    ]
 
 
 def test_membership_and_site_meter_records_are_tenant_scoped():

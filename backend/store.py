@@ -2,7 +2,18 @@ from __future__ import annotations
 
 import sqlite3
 
-from .domain import Membership, Meter, Organization, Role, Site, User
+from .domain import (
+    Membership,
+    Meter,
+    Organization,
+    Report,
+    Role,
+    Run,
+    RunStatus,
+    Site,
+    Upload,
+    User,
+)
 
 
 class SaaSStore:
@@ -74,6 +85,103 @@ class SaaSStore:
                 meter.unit,
                 meter.source_column,
                 int(meter.is_seu),
+            ),
+        )
+
+    def create_upload(self, upload: Upload) -> None:
+        self.conn.execute(
+            """
+            INSERT INTO uploads (
+                id,
+                organization_id,
+                site_id,
+                uploaded_by_user_id,
+                category,
+                storage_key,
+                checksum,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                upload.id,
+                upload.organization_id,
+                upload.site_id,
+                upload.uploaded_by_user_id,
+                upload.category,
+                upload.storage_key,
+                upload.checksum,
+                upload.status.value,
+            ),
+        )
+
+    def create_run(self, run: Run) -> None:
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT INTO runs (
+                    id,
+                    organization_id,
+                    site_id,
+                    requested_by_user_id,
+                    status,
+                    error_message,
+                    completed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run.id,
+                    run.organization_id,
+                    run.site_id,
+                    run.requested_by_user_id,
+                    run.status.value,
+                    run.error_message,
+                    run.completed_at.isoformat() if run.completed_at else None,
+                ),
+            )
+            for upload_id in run.upload_ids:
+                self.conn.execute(
+                    "INSERT INTO run_uploads (run_id, organization_id, upload_id) VALUES (?, ?, ?)",
+                    (run.id, run.organization_id, upload_id),
+                )
+
+    def update_run_status(
+        self,
+        run_id: str,
+        status: RunStatus,
+        error_message: str | None = None,
+        completed_at: str | None = None,
+    ) -> None:
+        self.conn.execute(
+            """
+            UPDATE runs
+            SET status = ?, error_message = ?, completed_at = ?
+            WHERE id = ?
+            """,
+            (status.value, error_message, completed_at, run_id),
+        )
+
+    def create_report(self, report: Report) -> None:
+        self.conn.execute(
+            """
+            INSERT INTO reports (
+                id,
+                organization_id,
+                run_id,
+                report_type,
+                storage_key,
+                is_published
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                report.id,
+                report.organization_id,
+                report.run_id,
+                report.report_type,
+                report.storage_key,
+                int(report.is_published),
             ),
         )
 
@@ -176,3 +284,51 @@ class SaaSStore:
             )
             for row in rows
         ]
+
+    def list_uploads(self, organization_id: str, site_id: str | None = None) -> list[sqlite3.Row]:
+        clauses = ["organization_id = ?"]
+        params = [organization_id]
+        if site_id is not None:
+            clauses.append("site_id = ?")
+            params.append(site_id)
+        return self.conn.execute(
+            f"""
+            SELECT *
+            FROM uploads
+            WHERE {' AND '.join(clauses)}
+            ORDER BY created_at DESC, id
+            """,
+            params,
+        ).fetchall()
+
+    def list_runs(self, organization_id: str, site_id: str | None = None) -> list[sqlite3.Row]:
+        clauses = ["organization_id = ?"]
+        params = [organization_id]
+        if site_id is not None:
+            clauses.append("site_id = ?")
+            params.append(site_id)
+        return self.conn.execute(
+            f"""
+            SELECT *
+            FROM runs
+            WHERE {' AND '.join(clauses)}
+            ORDER BY created_at DESC, id
+            """,
+            params,
+        ).fetchall()
+
+    def list_reports(self, organization_id: str, run_id: str | None = None) -> list[sqlite3.Row]:
+        clauses = ["organization_id = ?"]
+        params = [organization_id]
+        if run_id is not None:
+            clauses.append("run_id = ?")
+            params.append(run_id)
+        return self.conn.execute(
+            f"""
+            SELECT *
+            FROM reports
+            WHERE {' AND '.join(clauses)}
+            ORDER BY created_at DESC, id
+            """,
+            params,
+        ).fetchall()
