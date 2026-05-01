@@ -39,6 +39,14 @@ class RunStatus(str, Enum):
     FAILED = "failed"
 
 
+class AuditAction(str, Enum):
+    UPLOAD_STORED = "upload_stored"
+    RUN_STARTED = "run_started"
+    RUN_SUCCEEDED = "run_succeeded"
+    RUN_FAILED = "run_failed"
+    REPORT_CREATED = "report_created"
+
+
 @dataclass(frozen=True)
 class User:
     id: str
@@ -187,3 +195,29 @@ class Report:
             [self.id, self.organization_id, self.run_id, self.report_type, self.storage_key],
             "report field",
         )
+
+
+@dataclass(frozen=True)
+class AuditEvent:
+    id: str
+    organization_id: str
+    actor_user_id: str
+    action: AuditAction
+    resource_type: str
+    resource_id: str
+    metadata: dict[str, str] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=_now_utc)
+
+    def __post_init__(self) -> None:
+        _require_values(
+            [
+                self.id,
+                self.organization_id,
+                self.actor_user_id,
+                self.resource_type,
+                self.resource_id,
+            ],
+            "audit event field",
+        )
+        if not isinstance(self.action, AuditAction):
+            raise ValueError("audit_event.action must be an AuditAction")

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+import json
 
 from .domain import (
+    AuditEvent,
     Membership,
     Meter,
     Organization,
@@ -185,6 +187,31 @@ class SaaSStore:
             ),
         )
 
+    def create_audit_event(self, event: AuditEvent) -> None:
+        self.conn.execute(
+            """
+            INSERT INTO audit_events (
+                id,
+                organization_id,
+                actor_user_id,
+                action,
+                resource_type,
+                resource_id,
+                metadata_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.id,
+                event.organization_id,
+                event.actor_user_id,
+                event.action.value,
+                event.resource_type,
+                event.resource_id,
+                json.dumps(event.metadata, sort_keys=True),
+            ),
+        )
+
     def list_user_organizations(self, user_id: str) -> list[Organization]:
         rows = self.conn.execute(
             """
@@ -331,4 +358,15 @@ class SaaSStore:
             ORDER BY created_at DESC, id
             """,
             params,
+        ).fetchall()
+
+    def list_audit_events(self, organization_id: str) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            """
+            SELECT *
+            FROM audit_events
+            WHERE organization_id = ?
+            ORDER BY rowid
+            """,
+            (organization_id,),
         ).fetchall()

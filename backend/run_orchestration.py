@@ -8,7 +8,7 @@ import pandas as pd
 from analytics.service import AnalyticsRunResult, run_meter_analysis
 
 from .access_control import require_permission
-from .domain import Report, Run, RunStatus, Upload, UploadStatus
+from .domain import AuditAction, AuditEvent, Report, Run, RunStatus, Upload, UploadStatus
 from .rbac import Action
 from .storage_keys import report_storage_key, upload_storage_key
 from .store import SaaSStore
@@ -38,6 +38,22 @@ class AnalysisRunOutcome:
 def _dataframe_checksum(df: pd.DataFrame) -> str:
     csv_payload = df.to_csv(index=False).encode("utf-8")
     return sha256(csv_payload).hexdigest()
+
+
+def _audit_event(
+    request: AnalysisRunRequest,
+    action: AuditAction,
+    resource_type: str,
+    resource_id: str,
+) -> AuditEvent:
+    return AuditEvent(
+        id=f"{request.run_id}:{action.value}:{resource_type}:{resource_id}",
+        organization_id=request.organization_id,
+        actor_user_id=request.user_id,
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+    )
 
 
 def execute_analysis_run(store: SaaSStore, request: AnalysisRunRequest) -> AnalysisRunOutcome:
@@ -74,14 +90,19 @@ def execute_analysis_run(store: SaaSStore, request: AnalysisRunRequest) -> Analy
 
     with store.conn:
         store.create_upload(upload)
+        store.create_audit_event(
+            _audit_event(request, AuditAction.UPLOAD_STORED, "upload", request.upload_id)
+        )
         store.create_run(run)
         store.update_run_status(request.run_id, RunStatus.RUNNING)
+        store.create_audit_event(_audit_event(request, AuditAction.RUN_STARTED, "run", request.run_id))
 
     try:
         analytics = run_meter_analysis(request.raw_meter_data, request.client_config)
     except Exception as exc:
         with store.conn:
             store.update_run_status(request.run_id, RunStatus.FAILED, error_message=str(exc))
+            store.create_audit_event(_audit_event(request, AuditAction.RUN_FAILED, "run", request.run_id))
         raise
 
     report = Report(
@@ -99,6 +120,10 @@ def execute_analysis_run(store: SaaSStore, request: AnalysisRunRequest) -> Analy
     )
     with store.conn:
         store.update_run_status(request.run_id, RunStatus.SUCCEEDED)
+        store.create_audit_event(_audit_event(request, AuditAction.RUN_SUCCEEDED, "run", request.run_id))
         store.create_report(report)
+        store.create_audit_event(
+            _audit_event(request, AuditAction.REPORT_CREATED, "report", request.report_id)
+        )
 
     return AnalysisRunOutcome(upload=upload, run=run, report=report, analytics=analytics)

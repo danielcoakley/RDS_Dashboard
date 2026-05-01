@@ -31,6 +31,7 @@ def test_migrations_are_idempotent():
     assert [row["version"] for row in versions] == [
         "001_tenant_skeleton",
         "002_runs_and_reports",
+        "003_audit_events",
     ]
 
 

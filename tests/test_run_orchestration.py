@@ -51,6 +51,12 @@ def test_execute_analysis_run_creates_metadata_and_report():
     assert reports[0]["id"] == "report_1"
     assert uploads[0]["checksum"]
     assert outcome.analytics.iso_summary["total_records"] == 4
+    assert [event["action"] for event in store.list_audit_events("org_1")] == [
+        "upload_stored",
+        "run_started",
+        "run_succeeded",
+        "report_created",
+    ]
 
 
 def test_execute_analysis_run_requires_run_permission():
@@ -91,3 +97,8 @@ def test_execute_analysis_run_marks_failed_when_analytics_fails():
     assert runs[0]["status"] == "failed"
     assert "missing" in runs[0]["error_message"].lower()
     assert reports == []
+    assert [event["action"] for event in store.list_audit_events("org_1")] == [
+        "upload_stored",
+        "run_started",
+        "run_failed",
+    ]

@@ -4,6 +4,8 @@ from .access_control import AccessDenied, TenantContext, require_permission, req
 from .api import create_app
 from .auth_context import AuthenticatedUser, request_user_from_header, user_from_clerk_claims
 from .domain import (
+    AuditAction,
+    AuditEvent,
     Membership,
     Meter,
     Organization,
@@ -29,6 +31,8 @@ __all__ = [
     "AnalysisRunOutcome",
     "AnalysisRunRequest",
     "AuthenticatedUser",
+    "AuditAction",
+    "AuditEvent",
     "Membership",
     "Meter",
     "Organization",
