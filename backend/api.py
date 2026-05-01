@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from pydantic import BaseModel
 
 from .access_control import require_permission
+from .auth_context import AuthenticatedUser, request_user_from_header
 from .database import initialize_database
 from .domain import Organization, User
 from .onboarding import create_owner_organization
@@ -164,12 +165,15 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         return onboard_owner_organization(payload, request.app.state.store)
 
     @app.get(
-        "/users/{user_id}/organizations",
+        "/me/organizations",
         response_model=list[OrganizationSummary],
         tags=["organizations"],
     )
-    def user_organizations(user_id: str, request: Request) -> list[OrganizationSummary]:
-        return list_user_organization_summaries(user_id, request.app.state.store)
+    def user_organizations(
+        request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
+    ) -> list[OrganizationSummary]:
+        return list_user_organization_summaries(user.id, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/sites",
@@ -178,10 +182,10 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     )
     def organization_sites(
         organization_id: str,
-        user_id: str,
         request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
     ) -> list[SiteSummary]:
-        return list_site_summaries(user_id, organization_id, request.app.state.store)
+        return list_site_summaries(user.id, organization_id, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/meters",
@@ -190,11 +194,11 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     )
     def organization_meters(
         organization_id: str,
-        user_id: str,
         request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
         site_id: str | None = None,
     ) -> list[MeterSummary]:
-        return list_meter_summaries(user_id, organization_id, request.app.state.store, site_id=site_id)
+        return list_meter_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
 
     return app
 

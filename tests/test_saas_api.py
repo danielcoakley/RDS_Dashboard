@@ -32,7 +32,7 @@ def test_api_app_registers_system_routes():
         "/organizations/onboard-owner",
         "/organizations/{organization_id}/sites",
         "/organizations/{organization_id}/meters",
-        "/users/{user_id}/organizations",
+        "/me/organizations",
     }.issubset(routes)
 
 

@@ -2,6 +2,7 @@
 
 from .access_control import AccessDenied, TenantContext, require_permission, require_resource_scope
 from .api import create_app
+from .auth_context import AuthenticatedUser, request_user_from_header
 from .domain import (
     Membership,
     Meter,
@@ -27,6 +28,7 @@ __all__ = [
     "AccessDenied",
     "AnalysisRunOutcome",
     "AnalysisRunRequest",
+    "AuthenticatedUser",
     "Membership",
     "Meter",
     "Organization",
@@ -51,6 +53,7 @@ __all__ = [
     "initialize_database",
     "require_permission",
     "require_resource_scope",
+    "request_user_from_header",
     "report_storage_key",
     "safe_key_part",
     "upload_storage_key",
