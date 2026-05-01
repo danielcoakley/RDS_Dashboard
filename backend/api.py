@@ -59,6 +59,15 @@ class MeterSummary(BaseModel):
     is_seu: bool
 
 
+class ReportSummary(BaseModel):
+    id: str
+    organization_id: str
+    run_id: str
+    report_type: str
+    storage_key: str
+    is_published: bool
+
+
 class LocalAnalysisRunCreate(BaseModel):
     site_id: str
     upload_id: str
@@ -169,6 +178,31 @@ def list_meter_summaries(
     ]
 
 
+def list_report_summaries(
+    user_id: str,
+    organization_id: str,
+    store: SaaSStore,
+    run_id: str | None = None,
+) -> list[ReportSummary]:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.READ,
+    )
+    return [
+        ReportSummary(
+            id=report["id"],
+            organization_id=report["organization_id"],
+            run_id=report["run_id"],
+            report_type=report["report_type"],
+            storage_key=report["storage_key"],
+            is_published=bool(report["is_published"]),
+        )
+        for report in store.list_reports(organization_id=organization_id, run_id=run_id)
+    ]
+
+
 def execute_local_analysis_run(
     user_id: str,
     organization_id: str,
@@ -253,6 +287,19 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         site_id: str | None = None,
     ) -> list[MeterSummary]:
         return list_meter_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
+
+    @app.get(
+        "/organizations/{organization_id}/reports",
+        response_model=list[ReportSummary],
+        tags=["reports"],
+    )
+    def organization_reports(
+        organization_id: str,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
+        run_id: str | None = None,
+    ) -> list[ReportSummary]:
+        return list_report_summaries(user.id, organization_id, request.app.state.store, run_id=run_id)
 
     @app.post(
         "/organizations/{organization_id}/runs/execute-local",

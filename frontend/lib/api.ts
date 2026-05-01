@@ -41,6 +41,15 @@ export type LocalAnalysisRunResponse = {
   iso_summary: Record<string, unknown>;
 };
 
+export type ReportSummary = {
+  id: string;
+  organization_id: string;
+  run_id: string;
+  report_type: string;
+  storage_key: string;
+  is_published: boolean;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 async function apiFetch<T>(path: string, userId: string, init?: RequestInit): Promise<T> {
@@ -93,4 +102,13 @@ export function executeLocalAnalysisRun(
       body: JSON.stringify(payload)
     }
   );
+}
+
+export function getOrganizationReports(
+  userId: string,
+  organizationId: string,
+  runId?: string
+): Promise<ReportSummary[]> {
+  const query = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  return apiFetch<ReportSummary[]>(`/organizations/${organizationId}/reports${query}`, userId);
 }

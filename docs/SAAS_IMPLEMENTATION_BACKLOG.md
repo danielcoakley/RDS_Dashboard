@@ -25,7 +25,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 2. Add upload records and storage-key generation. Initial upload/run/report metadata tables exist in `backend/migrations/002_runs_and_reports.sql`, with tenant-scoped key helpers in `backend/storage_keys.py`.
 3. Wrap current analytics pipeline behind a run service. Initial analytics service boundary exists in `analytics/service.py`.
 4. Add run status lifecycle and report artifact records. Initial local orchestration exists in `backend/run_orchestration.py` and is exposed through a FastAPI local execution route.
-5. Add end-to-end tests from upload to report retrieval.
+5. Add end-to-end tests from upload to report retrieval. Local execution and tenant-guarded report listing are covered in API/service tests.
 
 ## Milestone 3: SaaS UX and Landing Experience
 

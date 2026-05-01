@@ -7,6 +7,7 @@ from backend.api import (
     create_app,
     execute_local_analysis_run,
     health_check,
+    list_report_summaries,
     list_meter_summaries,
     list_site_summaries,
     list_user_organization_summaries,
@@ -35,6 +36,7 @@ def test_api_app_registers_system_routes():
         "/organizations/onboard-owner",
         "/organizations/{organization_id}/sites",
         "/organizations/{organization_id}/meters",
+        "/organizations/{organization_id}/reports",
         "/organizations/{organization_id}/runs/execute-local",
         "/me/organizations",
     }.issubset(routes)
@@ -179,3 +181,37 @@ def test_execute_local_analysis_run_returns_run_metadata_and_iso_summary():
     assert response.run_status == "succeeded"
     assert response.report_storage_key == "tenants/org_1/sites/site_1/runs/run_1/reports/iso-summary.json"
     assert response.iso_summary["total_records"] == 4
+
+
+def test_report_summaries_are_tenant_guarded():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="user_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    store.create_site(Site(id="site_1", organization_id="org_1", name="Main Site", timezone="Europe/London"))
+    payload = LocalAnalysisRunCreate(
+        site_id="site_1",
+        upload_id="upload_1",
+        run_id="run_1",
+        report_id="report_1",
+        filename="energy.csv",
+        rows=[
+            {"Date": "2025-01-01", "Main Electricity": 100, "Main Gas": 80},
+            {"Date": "2025-02-01", "Main Electricity": 120, "Main Gas": 70},
+        ],
+        client_config=load_client_config("config/clients/example_client.yaml"),
+    )
+    execute_local_analysis_run("user_1", "org_1", payload, store)
+
+    reports = list_report_summaries("user_1", "org_1", store, run_id="run_1")
+
+    assert [report.id for report in reports] == ["report_1"]
+    assert reports[0].is_published
