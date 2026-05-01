@@ -22,7 +22,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 ## Milestone 2: Ingestion and Run Orchestration
 
 1. Replace shared `seu_mapping.csv` behavior with tenant-scoped upload storage.
-2. Add upload records and storage-key generation. Initial upload/run/report metadata tables exist in `backend/migrations/002_runs_and_reports.sql`.
+2. Add upload records and storage-key generation. Initial upload/run/report metadata tables exist in `backend/migrations/002_runs_and_reports.sql`, with tenant-scoped key helpers in `backend/storage_keys.py`.
 3. Wrap current analytics pipeline behind a run service. Initial analytics service boundary exists in `analytics/service.py`.
 4. Add run status lifecycle and report artifact records.
 5. Add end-to-end tests from upload to report retrieval.
