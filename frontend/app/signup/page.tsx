@@ -12,9 +12,9 @@ function signupErrorMessage(error: string | undefined): string | null {
     return null;
   }
   if (error === "missing-fields") {
-    return "Fill in the user and organization details to create the workspace.";
+    return "Complete all required fields to create your workspace.";
   }
-  return "We could not create that workspace. Check for duplicate IDs or slugs and try again.";
+  return "We could not create that workspace. Confirm the IDs are unique and try again.";
 }
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
@@ -64,11 +64,10 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   return (
     <main className="authShell">
       <section className="authCard">
-        <p className="eyebrow">Create workspace</p>
-        <h1>Set up your tenant</h1>
+        <p className="eyebrow">Create Workspace</p>
+        <h1>Create your organization</h1>
         <p className="authLead">
-          This local onboarding page creates the owner user, organization, and first development
-          session so we can exercise the SaaS flows without live identity infrastructure yet.
+          Create the owner account and organization to start using your analytics workspace.
         </p>
 
         {errorMessage ? (
@@ -81,32 +80,32 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         <form action={signupAction} className="authForm">
           <label className="authField">
             <span>User ID</span>
-            <input name="user_id" type="text" placeholder="owner_1" autoComplete="username" />
+            <input name="user_id" type="text" placeholder="owner_1" autoComplete="username" required />
           </label>
           <label className="authField">
             <span>Email</span>
-            <input name="email" type="email" placeholder="owner@example.com" autoComplete="email" />
+            <input name="email" type="email" placeholder="owner@example.com" autoComplete="email" required />
           </label>
           <label className="authField">
             <span>Display name</span>
-            <input name="display_name" type="text" placeholder="Energy Lead" autoComplete="name" />
+            <input name="display_name" type="text" placeholder="Energy Lead" autoComplete="name" required />
           </label>
           <label className="authField">
             <span>Organization ID</span>
-            <input name="organization_id" type="text" placeholder="org_1" />
+            <input name="organization_id" type="text" placeholder="org_1" required />
           </label>
           <label className="authField">
             <span>Organization name</span>
-            <input name="organization_name" type="text" placeholder="Example Energy" />
+            <input name="organization_name" type="text" placeholder="Example Energy" required />
           </label>
           <label className="authField">
             <span>Organization slug</span>
-            <input name="organization_slug" type="text" placeholder="example-energy" />
+            <input name="organization_slug" type="text" placeholder="example-energy" required />
           </label>
 
           <div className="authActions">
             <button type="submit" className="btn btnPrimary btnLg">
-              Create tenant
+              Create workspace
             </button>
             <Link href="/login" className="btn btnGhost btnLg">
               I already have access

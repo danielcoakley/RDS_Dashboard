@@ -12,9 +12,9 @@ function loginErrorMessage(error: string | undefined): string | null {
     return null;
   }
   if (error === "missing-fields") {
-    return "Enter a user ID to open a local development session.";
+    return "Enter your user ID to continue.";
   }
-  return "We could not create a session for that user. Check the user ID and organization.";
+  return "We could not sign you in. Check your user ID and organization and try again.";
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
@@ -51,11 +51,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="authShell">
       <section className="authCard">
-        <p className="eyebrow">Development sign in</p>
-        <h1>Open your tenant workspace</h1>
+        <p className="eyebrow">Sign In</p>
+        <h1>Open your workspace</h1>
         <p className="authLead">
-          This local sign-in page creates a development session token using existing user and
-          membership records. It is a bridge to the future Clerk-based auth flow, not the final auth UI.
+          Sign in with your user ID and optional organization ID to continue to your tenant workspace.
         </p>
 
         {errorMessage ? (
@@ -68,7 +67,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <form action={loginAction} className="authForm">
           <label className="authField">
             <span>User ID</span>
-            <input name="user_id" type="text" placeholder="user_1" autoComplete="username" />
+            <input name="user_id" type="text" placeholder="user_1" autoComplete="username" required />
           </label>
           <label className="authField">
             <span>Organization ID</span>
