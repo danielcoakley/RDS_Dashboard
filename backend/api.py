@@ -7,7 +7,7 @@ import pandas as pd
 from pydantic import BaseModel
 
 from .access_control import require_permission
-from .auth_context import AuthenticatedUser, request_user_from_header
+from .auth_context import AuthenticatedUser, request_authenticated_user
 from .database import initialize_database
 from .domain import Organization, User
 from .onboarding import create_owner_organization
@@ -368,7 +368,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     )
     def user_organizations(
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> list[OrganizationSummary]:
         return list_user_organization_summaries(user.id, request.app.state.store)
 
@@ -380,7 +380,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     def organization_sites(
         organization_id: str,
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> list[SiteSummary]:
         return list_site_summaries(user.id, organization_id, request.app.state.store)
 
@@ -392,7 +392,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     def organization_meters(
         organization_id: str,
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
         site_id: str | None = None,
     ) -> list[MeterSummary]:
         return list_meter_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
@@ -405,7 +405,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     def organization_uploads(
         organization_id: str,
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
         site_id: str | None = None,
     ) -> list[UploadSummary]:
         return list_upload_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
@@ -418,7 +418,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     def organization_runs(
         organization_id: str,
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
         site_id: str | None = None,
     ) -> list[RunSummary]:
         return list_run_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
@@ -431,7 +431,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     def organization_reports(
         organization_id: str,
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
         run_id: str | None = None,
     ) -> list[ReportSummary]:
         return list_report_summaries(user.id, organization_id, request.app.state.store, run_id=run_id)
@@ -444,7 +444,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     def organization_audit_events(
         organization_id: str,
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> list[AuditEventSummary]:
         return list_audit_event_summaries(user.id, organization_id, request.app.state.store)
 
@@ -457,7 +457,7 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         organization_id: str,
         payload: LocalAnalysisRunCreate,
         request: Request,
-        user: AuthenticatedUser = Depends(request_user_from_header),
+        user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> LocalAnalysisRunResponse:
         return execute_local_analysis_run(user.id, organization_id, payload, request.app.state.store)
 

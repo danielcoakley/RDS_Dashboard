@@ -82,13 +82,28 @@ export type AuditEventSummary = {
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const AUTH_TOKEN =
+  process.env.NEXT_PUBLIC_DEMO_AUTH_TOKEN ?? process.env.DEMO_AUTH_TOKEN ?? null;
+
+function buildAuthHeaders(userId: string): HeadersInit {
+  if (AUTH_TOKEN && AUTH_TOKEN.trim()) {
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${AUTH_TOKEN.trim()}`
+    };
+  }
+
+  return {
+    "Content-Type": "application/json",
+    "X-User-Id": userId
+  };
+}
 
 async function apiFetch<T>(path: string, userId: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
-      "X-User-Id": userId,
+      ...buildAuthHeaders(userId),
       ...(init?.headers ?? {})
     }
   });
