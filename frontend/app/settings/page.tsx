@@ -1,7 +1,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
-import { createOrganizationInvite, revokeOrganizationInvite } from "../../lib/api";
+import {
+  createOrganizationInvite,
+  createOrganizationSite,
+  revokeOrganizationInvite
+} from "../../lib/api";
 import { readAppSession } from "../../lib/session";
 import { loadSettingsData } from "../../lib/settings-data";
 
@@ -27,11 +31,18 @@ function settingsMessage(
       body: "The invite is no longer available for acceptance."
     };
   }
+  if (status === "site-created") {
+    return {
+      tone: "success",
+      title: "Site added",
+      body: "The new site is now part of your organization."
+    };
+  }
   if (error === "missing-fields") {
     return {
       tone: "error",
-      title: "Invite not created",
-      body: "Enter an email address and role before sending an invite."
+      title: "Action not completed",
+      body: "Fill in all required fields before submitting."
     };
   }
   if (error === "session-missing") {
@@ -46,6 +57,13 @@ function settingsMessage(
       tone: "error",
       title: "Invite not created",
       body: "We could not create that invite. Check for duplicate email addresses or permissions."
+    };
+  }
+  if (error === "site-failed") {
+    return {
+      tone: "error",
+      title: "Site not added",
+      body: "We could not add that site. Check details and try again."
     };
   }
   return null;
@@ -115,6 +133,41 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       redirect("/settings?status=invite-revoked");
     } catch {
       redirect("/settings?error=invite-failed");
+    }
+  }
+
+  async function createSiteAction(formData: FormData) {
+    "use server";
+
+    const name = String(formData.get("name") ?? "").trim();
+    const timezone = String(formData.get("timezone") ?? "").trim();
+    const session = await readAppSession();
+
+    if (!name || !timezone) {
+      redirect("/settings?error=missing-fields");
+    }
+    if (!session.userId || !session.organizationId) {
+      redirect("/settings?error=session-missing");
+    }
+
+    const siteId = `site_${Date.now()}`;
+    try {
+      await createOrganizationSite(
+        session.userId,
+        session.organizationId,
+        {
+          site_id: siteId,
+          name,
+          timezone
+        },
+        session.authToken
+      );
+      revalidatePath("/settings");
+      revalidatePath("/dashboard");
+      revalidatePath("/uploads");
+      redirect("/settings?status=site-created");
+    } catch {
+      redirect("/settings?error=site-failed");
     }
   }
 
@@ -193,6 +246,19 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             <h2>Sites</h2>
             <span>Organization footprint</span>
           </div>
+          <form action={createSiteAction} className="inlineForm">
+            <label className="authField">
+              <span>Name</span>
+              <input name="name" type="text" placeholder="Main Site" />
+            </label>
+            <label className="authField">
+              <span>Timezone</span>
+              <input name="timezone" type="text" placeholder="Europe/London" />
+            </label>
+            <button type="submit" className="btn btnPrimary btnSm">
+              Add site
+            </button>
+          </form>
           <div className="rowList">
             {sites.map((site) => (
               <div className="dataRow" key={site.id}>

@@ -7,11 +7,13 @@ from backend.api import (
     OwnerOrganizationCreate,
     OrganizationInviteAccept,
     OrganizationInviteCreate,
+    SiteCreate,
     UploadCreate,
     accept_invite,
     create_dev_session,
     create_app,
     create_invite,
+    create_site_summary,
     create_upload_summary,
     execute_local_analysis_run,
     health_check,
@@ -524,6 +526,52 @@ def test_create_upload_summary_requires_upload_permission():
             store,
         )
         assert False, "Expected cross-tenant upload creation to be denied"
+    except AccessDenied:
+        pass
+
+
+def test_create_site_summary_requires_organization_management_permission():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_2",
+            email="other@example.com",
+            display_name="Other Owner",
+            organization_id="org_2",
+            organization_name="Other Energy",
+            organization_slug="other-energy",
+        ),
+        store,
+    )
+
+    created = create_site_summary(
+        "owner_1",
+        "org_1",
+        SiteCreate(site_id="site_1", name="Main Site", timezone="Europe/London"),
+        store,
+    )
+    assert created.id == "site_1"
+    assert created.organization_id == "org_1"
+
+    try:
+        create_site_summary(
+            "owner_2",
+            "org_1",
+            SiteCreate(site_id="site_2", name="Blocked Site", timezone="Europe/London"),
+            store,
+        )
+        assert False, "Expected cross-tenant site creation to be denied"
     except AccessDenied:
         pass
 

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from .access_control import require_permission
 from .auth_context import AuthenticatedUser, dev_token_from_claims, request_authenticated_user
 from .database import initialize_database
-from .domain import AuditAction, AuditEvent, Organization, Role, Upload, UploadStatus, User
+from .domain import AuditAction, AuditEvent, Organization, Role, Site, Upload, UploadStatus, User
 from .invitations import (
     accept_organization_invite,
     create_organization_invite,
@@ -62,6 +62,12 @@ class OrganizationSummary(BaseModel):
 class SiteSummary(BaseModel):
     id: str
     organization_id: str
+    name: str
+    timezone: str
+
+
+class SiteCreate(BaseModel):
+    site_id: str
     name: str
     timezone: str
 
@@ -272,6 +278,34 @@ def list_site_summaries(
         )
         for site in store.list_sites(organization_id)
     ]
+
+
+def create_site_summary(
+    user_id: str,
+    organization_id: str,
+    payload: SiteCreate,
+    store: SaaSStore,
+) -> SiteSummary:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.MANAGE_ORGANIZATION,
+    )
+    site = Site(
+        id=payload.site_id,
+        organization_id=organization_id,
+        name=payload.name,
+        timezone=payload.timezone,
+    )
+    with store.conn:
+        store.create_site(site)
+    return SiteSummary(
+        id=site.id,
+        organization_id=site.organization_id,
+        name=site.name,
+        timezone=site.timezone,
+    )
 
 
 def list_membership_summaries(
@@ -668,6 +702,19 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> list[SiteSummary]:
         return list_site_summaries(user.id, organization_id, request.app.state.store)
+
+    @app.post(
+        "/organizations/{organization_id}/sites",
+        response_model=SiteSummary,
+        tags=["organizations"],
+    )
+    def organization_create_site(
+        organization_id: str,
+        payload: SiteCreate,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> SiteSummary:
+        return create_site_summary(user.id, organization_id, payload, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/memberships",

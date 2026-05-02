@@ -38,6 +38,12 @@ export type SiteSummary = {
   timezone: string;
 };
 
+export type SiteCreatePayload = {
+  site_id: string;
+  name: string;
+  timezone: string;
+};
+
 export type MembershipSummary = {
   user_id: string;
   organization_id: string;
@@ -247,6 +253,23 @@ export function getOrganizationSites(
   authToken?: string | null
 ): Promise<SiteSummary[]> {
   return apiFetch<SiteSummary[]>(`/organizations/${organizationId}/sites`, userId, undefined, authToken);
+}
+
+export function createOrganizationSite(
+  userId: string,
+  organizationId: string,
+  payload: SiteCreatePayload,
+  authToken?: string | null
+): Promise<SiteSummary> {
+  return apiFetch<SiteSummary>(
+    `/organizations/${organizationId}/sites`,
+    userId,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    authToken
+  );
 }
 
 export function getOrganizationMemberships(
