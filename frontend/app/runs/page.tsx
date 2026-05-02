@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
-import { createOrganizationRun } from "../../lib/api";
+import { executeLocalAnalysisRun } from "../../lib/api";
 import { loadDashboardData } from "../../lib/dashboard-data";
 import { readAppSession } from "../../lib/session";
 
@@ -12,6 +12,53 @@ const requiredFiles = [
   { key: "cdd", label: "CDD data" },
   { key: "seu_mapping", label: "SEU mapping" }
 ];
+
+const defaultClientConfig = {
+  client: {
+    id: "rds_client",
+    name: "RDS Site",
+    timezone: "Europe/London",
+    reporting_currency: "GBP"
+  },
+  site: {
+    name: "RDS Site",
+    floor_area_m2: null,
+    activity_metric: null
+  },
+  meters: [
+    {
+      meter_id: "elec_main",
+      display_name: "Main Electricity",
+      commodity: "electricity",
+      unit: "kWh",
+      source_column: "Main Electricity",
+      is_seu: true
+    },
+    {
+      meter_id: "gas_main",
+      display_name: "Main Gas",
+      commodity: "gas",
+      unit: "kWh",
+      source_column: "Main Gas",
+      is_seu: true
+    }
+  ],
+  analysis: {
+    baseline_start: null,
+    baseline_end: null,
+    reporting_start: null,
+    reporting_end: null,
+    weather_normalisation: true,
+    hdd_base_temperature: 15.5,
+    cdd_base_temperature: 22.0,
+    outlier_removal: true
+  },
+  iso50001: {
+    organisation_context: "",
+    energy_policy_reference: "",
+    audit_notes: ""
+  }
+};
 
 type RunsPageProps = {
   searchParams: Promise<{ status?: string; error?: string }>;
@@ -24,28 +71,28 @@ function runsMessage(
   if (status === "run-requested") {
     return {
       tone: "success",
-      title: "Analysis queued",
-      body: "The run is now in the history list."
+      title: "Analysis complete",
+      body: "The upload, run, and ISO summary report were created from the CSV."
     };
   }
   if (error === "missing-fields") {
     return {
       tone: "error",
-      title: "Analysis not queued",
-      body: "Choose a site and an energy upload before starting analysis."
+      title: "Analysis not run",
+      body: "Choose a site and an energy CSV before starting analysis."
     };
   }
   if (error === "session-missing") {
     return {
       tone: "error",
-      title: "Analysis not queued",
+      title: "Analysis not run",
       body: "Sign in to an organization workspace before running analysis."
     };
   }
   if (error === "run-failed") {
     return {
       tone: "error",
-      title: "Analysis not queued",
+      title: "Analysis not run",
       body: "We could not queue that run. Check the selected source file and try again."
     };
   }
@@ -56,13 +103,55 @@ function hasUploadCategory(uploadCategories: Set<string>, key: string): boolean 
   return uploadCategories.has(key) || uploadCategories.has(key.replace("_", "-"));
 }
 
+function parseCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function parseCsvRows(csvText: string): Array<Record<string, string | number>> {
+  const lines = csvText
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const headers = parseCsvLine(lines[0] ?? "");
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    return headers.reduce<Record<string, string | number>>((row, header, index) => {
+      const rawValue = values[index] ?? "";
+      const numericValue = Number(rawValue);
+      row[header] = rawValue !== "" && Number.isFinite(numericValue) ? numericValue : rawValue;
+      return row;
+    }, {});
+  });
+}
+
 export default async function RunsPage({ searchParams }: RunsPageProps) {
   const query = await searchParams;
   const { mode, runs, reports, uploads, sites } = await loadDashboardData();
   const uploadCategories = new Set(uploads.map((upload) => upload.category.toLowerCase()));
   const filesReady = requiredFiles.filter((file) => hasUploadCategory(uploadCategories, file.key)).length;
-  const energyUploads = uploads.filter((upload) => upload.category.toLowerCase() === "energy");
-  const canRun = mode === "live" && sites.length > 0 && energyUploads.length > 0;
+  const canRun = mode === "live" && sites.length > 0;
   const latestRun = runs[0];
   const pageMessage = runsMessage(query.status, query.error);
 
@@ -70,10 +159,10 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
     "use server";
 
     const siteId = String(formData.get("site_id") ?? "").trim();
-    const uploadId = String(formData.get("upload_id") ?? "").trim();
+    const energyFile = formData.get("energy_file");
     const session = await readAppSession();
 
-    if (!siteId || !uploadId) {
+    if (!siteId || !(energyFile instanceof File) || energyFile.size === 0) {
       redirect("/runs?error=missing-fields");
     }
     if (!session.userId || !session.organizationId) {
@@ -81,14 +170,24 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
     }
 
     const runId = `run_${Date.now()}`;
+    const uploadId = `upload_${Date.now()}`;
+    const reportId = `report_${Date.now()}`;
     try {
-      await createOrganizationRun(
+      const rows = parseCsvRows(await energyFile.text());
+      if (rows.length === 0) {
+        redirect("/runs?error=missing-fields");
+      }
+      await executeLocalAnalysisRun(
         session.userId,
         session.organizationId,
         {
-          run_id: runId,
           site_id: siteId,
-          upload_ids: [uploadId]
+          upload_id: uploadId,
+          run_id: runId,
+          report_id: reportId,
+          filename: energyFile.name,
+          rows,
+          client_config: defaultClientConfig
         },
         session.authToken
       );
@@ -149,7 +248,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
           {!canRun ? (
             <div className="authNotice authError" role="alert">
               <strong>Inputs needed</strong>
-              <span>Add a site and at least one energy data source file before running analysis.</span>
+              <span>Add a site, then choose the energy CSV you want to analyse.</span>
             </div>
           ) : null}
           <form action={requestRunAction} className="inlineForm">
@@ -164,14 +263,8 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
               </select>
             </label>
             <label className="authField">
-              <span>Energy data</span>
-              <select name="upload_id" defaultValue={energyUploads[0]?.id ?? ""} disabled={!canRun}>
-                {energyUploads.map((upload) => (
-                  <option key={upload.id} value={upload.id}>
-                    {upload.id}
-                  </option>
-                ))}
-              </select>
+              <span>Energy CSV</span>
+              <input name="energy_file" type="file" accept=".csv,text/csv" disabled={!canRun} />
             </label>
             <button type="submit" className="btn btnPrimary btnSm" disabled={!canRun}>
               Run analysis
