@@ -121,6 +121,14 @@ export type UploadSummary = {
   status: string;
 };
 
+export type UploadCreatePayload = {
+  upload_id: string;
+  site_id: string;
+  category: string;
+  filename: string;
+  checksum: string;
+};
+
 export type RunSummary = {
   id: string;
   organization_id: string;
@@ -377,6 +385,23 @@ export function getOrganizationUploads(
     `/organizations/${organizationId}/uploads${query}`,
     userId,
     undefined,
+    authToken
+  );
+}
+
+export function createOrganizationUpload(
+  userId: string,
+  organizationId: string,
+  payload: UploadCreatePayload,
+  authToken?: string | null
+): Promise<UploadSummary> {
+  return apiFetch<UploadSummary>(
+    `/organizations/${organizationId}/uploads`,
+    userId,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
     authToken
   );
 }

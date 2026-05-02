@@ -7,10 +7,12 @@ from backend.api import (
     OwnerOrganizationCreate,
     OrganizationInviteAccept,
     OrganizationInviteCreate,
+    UploadCreate,
     accept_invite,
     create_dev_session,
     create_app,
     create_invite,
+    create_upload_summary,
     execute_local_analysis_run,
     health_check,
     list_audit_event_summaries,
@@ -464,6 +466,66 @@ def test_upload_and_run_summaries_are_tenant_guarded():
     assert [upload.id for upload in uploads] == ["upload_1"]
     assert [run.id for run in runs] == ["run_1"]
     assert runs[0].status == "succeeded"
+
+
+def test_create_upload_summary_requires_upload_permission():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_2",
+            email="other@example.com",
+            display_name="Other Owner",
+            organization_id="org_2",
+            organization_name="Other Energy",
+            organization_slug="other-energy",
+        ),
+        store,
+    )
+    store.create_site(Site(id="site_1", organization_id="org_1", name="Main Site", timezone="Europe/London"))
+
+    summary = create_upload_summary(
+        "owner_1",
+        "org_1",
+        UploadCreate(
+            upload_id="upload_1",
+            site_id="site_1",
+            category="energy",
+            filename="energy.csv",
+            checksum="abc123",
+        ),
+        store,
+    )
+
+    assert summary.id == "upload_1"
+    assert summary.status == "stored"
+
+    try:
+        create_upload_summary(
+            "owner_2",
+            "org_1",
+            UploadCreate(
+                upload_id="upload_2",
+                site_id="site_1",
+                category="energy",
+                filename="energy.csv",
+                checksum="abc123",
+            ),
+            store,
+        )
+        assert False, "Expected cross-tenant upload creation to be denied"
+    except AccessDenied:
+        pass
 
 
 def test_audit_event_summaries_require_audit_permission():

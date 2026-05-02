@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from .access_control import require_permission
 from .auth_context import AuthenticatedUser, dev_token_from_claims, request_authenticated_user
 from .database import initialize_database
-from .domain import Organization, Role, User
+from .domain import AuditAction, AuditEvent, Organization, Role, Upload, UploadStatus, User
 from .invitations import (
     accept_organization_invite,
     create_organization_invite,
@@ -18,6 +18,7 @@ from .invitations import (
 from .onboarding import create_owner_organization
 from .rbac import Action
 from .run_orchestration import AnalysisRunRequest, execute_analysis_run
+from .storage_keys import upload_storage_key
 from .store import SaaSStore
 
 
@@ -118,6 +119,14 @@ class UploadSummary(BaseModel):
     storage_key: str
     checksum: str
     status: str
+
+
+class UploadCreate(BaseModel):
+    upload_id: str
+    site_id: str
+    category: str
+    filename: str
+    checksum: str
 
 
 class RunSummary(BaseModel):
@@ -368,6 +377,58 @@ def list_upload_summaries(
         )
         for upload in store.list_uploads(organization_id=organization_id, site_id=site_id)
     ]
+
+
+def create_upload_summary(
+    user_id: str,
+    organization_id: str,
+    payload: UploadCreate,
+    store: SaaSStore,
+) -> UploadSummary:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.MANAGE_UPLOADS,
+    )
+    upload = Upload(
+        id=payload.upload_id,
+        organization_id=organization_id,
+        site_id=payload.site_id,
+        uploaded_by_user_id=user_id,
+        category=payload.category,
+        storage_key=upload_storage_key(
+            organization_id=organization_id,
+            site_id=payload.site_id,
+            upload_id=payload.upload_id,
+            filename=payload.filename,
+        ),
+        checksum=payload.checksum,
+        status=UploadStatus.STORED,
+    )
+    event = AuditEvent(
+        id=f"audit_upload_{upload.id}",
+        organization_id=organization_id,
+        actor_user_id=user_id,
+        action=AuditAction.UPLOAD_STORED,
+        resource_type="upload",
+        resource_id=upload.id,
+        metadata={"category": upload.category, "site_id": upload.site_id},
+    )
+    with store.conn:
+        store.create_upload(upload)
+        store.create_audit_event(event)
+
+    return UploadSummary(
+        id=upload.id,
+        organization_id=upload.organization_id,
+        site_id=upload.site_id,
+        uploaded_by_user_id=upload.uploaded_by_user_id,
+        category=upload.category,
+        storage_key=upload.storage_key,
+        checksum=upload.checksum,
+        status=upload.status.value,
+    )
 
 
 def list_run_summaries(
@@ -683,6 +744,19 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         site_id: str | None = None,
     ) -> list[UploadSummary]:
         return list_upload_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
+
+    @app.post(
+        "/organizations/{organization_id}/uploads",
+        response_model=UploadSummary,
+        tags=["uploads"],
+    )
+    def organization_create_upload(
+        organization_id: str,
+        payload: UploadCreate,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> UploadSummary:
+        return create_upload_summary(user.id, organization_id, payload, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/runs",

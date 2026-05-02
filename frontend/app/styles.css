@@ -273,6 +273,14 @@ h3 {
   margin-top: 16px;
 }
 
+.inlineFormWide {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 16px;
+}
+
 /* Landing */
 
 .landing {
@@ -1041,6 +1049,10 @@ h3 {
   }
 
   .inlineForm {
+    grid-template-columns: 1fr;
+  }
+
+  .inlineFormWide {
     grid-template-columns: 1fr;
   }
 }
