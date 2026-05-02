@@ -26,6 +26,12 @@ class Role(str, Enum):
     VIEWER = "viewer"
 
 
+class InviteStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REVOKED = "revoked"
+
+
 class UploadStatus(str, Enum):
     PENDING = "pending"
     STORED = "stored"
@@ -45,6 +51,8 @@ class AuditAction(str, Enum):
     RUN_SUCCEEDED = "run_succeeded"
     RUN_FAILED = "run_failed"
     REPORT_CREATED = "report_created"
+    INVITE_CREATED = "invite_created"
+    INVITE_ACCEPTED = "invite_accepted"
 
 
 @dataclass(frozen=True)
@@ -87,6 +95,29 @@ class Membership:
         _require_text(self.organization_id, "membership.organization_id")
         if not isinstance(self.role, Role):
             raise ValueError("membership.role must be a Role")
+
+
+@dataclass(frozen=True)
+class OrganizationInvite:
+    id: str
+    organization_id: str
+    email: str
+    role: Role
+    invited_by_user_id: str
+    status: InviteStatus = InviteStatus.PENDING
+    accepted_by_user_id: str | None = None
+    created_at: datetime = field(default_factory=_now_utc)
+    accepted_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        _require_values(
+            [self.id, self.organization_id, self.email, self.invited_by_user_id],
+            "organization invite field",
+        )
+        if not isinstance(self.role, Role):
+            raise ValueError("organization_invite.role must be a Role")
+        if not isinstance(self.status, InviteStatus):
+            raise ValueError("organization_invite.status must be an InviteStatus")
 
 
 @dataclass(frozen=True)

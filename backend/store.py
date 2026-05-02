@@ -5,8 +5,10 @@ import json
 
 from .domain import (
     AuditEvent,
+    InviteStatus,
     Membership,
     Meter,
+    OrganizationInvite,
     Organization,
     Report,
     Role,
@@ -51,6 +53,33 @@ class SaaSStore:
                 membership.organization_id,
                 membership.role.value,
                 membership.invited_by_user_id,
+            ),
+        )
+
+    def create_organization_invite(self, invite: OrganizationInvite) -> None:
+        self.conn.execute(
+            """
+            INSERT INTO organization_invites (
+                id,
+                organization_id,
+                email,
+                role,
+                invited_by_user_id,
+                status,
+                accepted_by_user_id,
+                accepted_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                invite.id,
+                invite.organization_id,
+                invite.email,
+                invite.role.value,
+                invite.invited_by_user_id,
+                invite.status.value,
+                invite.accepted_by_user_id,
+                invite.accepted_at.isoformat() if invite.accepted_at else None,
             ),
         )
 
@@ -212,6 +241,21 @@ class SaaSStore:
             ),
         )
 
+    def accept_organization_invite(
+        self,
+        invite_id: str,
+        accepted_by_user_id: str,
+        accepted_at: str,
+    ) -> None:
+        self.conn.execute(
+            """
+            UPDATE organization_invites
+            SET status = ?, accepted_by_user_id = ?, accepted_at = ?
+            WHERE id = ?
+            """,
+            (InviteStatus.ACCEPTED.value, accepted_by_user_id, accepted_at, invite_id),
+        )
+
     def list_user_organizations(self, user_id: str) -> list[Organization]:
         rows = self.conn.execute(
             """
@@ -300,6 +344,36 @@ class SaaSStore:
             )
             for row in rows
         ]
+
+    def list_organization_invites(
+        self,
+        organization_id: str,
+        status: InviteStatus | None = None,
+    ) -> list[sqlite3.Row]:
+        clauses = ["organization_id = ?"]
+        params: list[str] = [organization_id]
+        if status is not None:
+            clauses.append("status = ?")
+            params.append(status.value)
+        return self.conn.execute(
+            f"""
+            SELECT *
+            FROM organization_invites
+            WHERE {' AND '.join(clauses)}
+            ORDER BY created_at DESC, id
+            """,
+            params,
+        ).fetchall()
+
+    def get_organization_invite(self, invite_id: str) -> sqlite3.Row | None:
+        return self.conn.execute(
+            """
+            SELECT *
+            FROM organization_invites
+            WHERE id = ?
+            """,
+            (invite_id,),
+        ).fetchone()
 
     def list_meters(self, organization_id: str, site_id: str | None = None) -> list[Meter]:
         clauses = ["organization_id = ?"]

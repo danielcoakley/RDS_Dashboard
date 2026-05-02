@@ -1,11 +1,13 @@
 import {
   getOrganizationAuditEvents,
+  getOrganizationInvites,
   getOrganizationMemberships,
   getOrganizationMeters,
   getOrganizationSites,
   type AuditEventSummary,
   type MembershipSummary,
   type MeterSummary,
+  type OrganizationInviteSummary,
   type SiteSummary
 } from "./api";
 import type { DashboardMode } from "./dashboard-data";
@@ -15,6 +17,7 @@ export type SettingsData = {
   sites: SiteSummary[];
   meters: MeterSummary[];
   memberships: MembershipSummary[];
+  invites: OrganizationInviteSummary[];
   auditEvents: AuditEventSummary[];
 };
 
@@ -70,6 +73,18 @@ const demoSettingsData: SettingsData = {
       is_active: true
     }
   ],
+  invites: [
+    {
+      id: "invite_1",
+      organization_id: "org_1",
+      email: "invitee@example.com",
+      role: "viewer",
+      invited_by_user_id: "user_1",
+      status: "pending",
+      accepted_by_user_id: null,
+      accepted_at: null
+    }
+  ],
   auditEvents: [
     {
       id: "audit_1",
@@ -92,10 +107,11 @@ export async function loadSettingsData(): Promise<SettingsData> {
   }
 
   try {
-    const [sites, meters, memberships, auditEvents] = await Promise.all([
+    const [sites, meters, memberships, invites, auditEvents] = await Promise.all([
       getOrganizationSites(userId, organizationId),
       getOrganizationMeters(userId, organizationId),
       getOrganizationMemberships(userId, organizationId),
+      getOrganizationInvites(userId, organizationId),
       getOrganizationAuditEvents(userId, organizationId)
     ]);
 
@@ -104,6 +120,7 @@ export async function loadSettingsData(): Promise<SettingsData> {
       sites,
       meters,
       memberships,
+      invites,
       auditEvents
     };
   } catch {

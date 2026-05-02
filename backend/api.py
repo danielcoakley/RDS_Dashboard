@@ -9,7 +9,8 @@ from pydantic import BaseModel
 from .access_control import require_permission
 from .auth_context import AuthenticatedUser, request_authenticated_user
 from .database import initialize_database
-from .domain import Organization, User
+from .domain import Organization, Role, User
+from .invitations import accept_organization_invite, create_organization_invite
 from .onboarding import create_owner_organization
 from .rbac import Action
 from .run_orchestration import AnalysisRunRequest, execute_analysis_run
@@ -56,6 +57,29 @@ class MembershipSummary(BaseModel):
     email: str
     display_name: str
     is_active: bool
+
+
+class OrganizationInviteCreate(BaseModel):
+    invite_id: str
+    email: str
+    role: Role
+
+
+class OrganizationInviteAccept(BaseModel):
+    user_id: str
+    email: str
+    display_name: str
+
+
+class OrganizationInviteSummary(BaseModel):
+    id: str
+    organization_id: str
+    email: str
+    role: str
+    invited_by_user_id: str
+    status: str
+    accepted_by_user_id: str | None
+    accepted_at: str | None
 
 
 class MeterSummary(BaseModel):
@@ -214,6 +238,32 @@ def list_membership_summaries(
             is_active=bool(row["is_active"]),
         )
         for row in store.list_organization_members(organization_id)
+    ]
+
+
+def list_organization_invite_summaries(
+    user_id: str,
+    organization_id: str,
+    store: SaaSStore,
+) -> list[OrganizationInviteSummary]:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.MANAGE_MEMBERS,
+    )
+    return [
+        OrganizationInviteSummary(
+            id=row["id"],
+            organization_id=row["organization_id"],
+            email=row["email"],
+            role=row["role"],
+            invited_by_user_id=row["invited_by_user_id"],
+            status=row["status"],
+            accepted_by_user_id=row["accepted_by_user_id"],
+            accepted_at=row["accepted_at"],
+        )
+        for row in store.list_organization_invites(organization_id)
     ]
 
 
@@ -378,6 +428,58 @@ def execute_local_analysis_run(
     )
 
 
+def create_invite(
+    user_id: str,
+    organization_id: str,
+    payload: OrganizationInviteCreate,
+    store: SaaSStore,
+) -> OrganizationInviteSummary:
+    invite = create_organization_invite(
+        store,
+        actor_user_id=user_id,
+        organization_id=organization_id,
+        invite_id=payload.invite_id,
+        email=payload.email,
+        role=payload.role,
+    )
+    return OrganizationInviteSummary(
+        id=invite.id,
+        organization_id=invite.organization_id,
+        email=invite.email,
+        role=invite.role.value,
+        invited_by_user_id=invite.invited_by_user_id,
+        status=invite.status.value,
+        accepted_by_user_id=invite.accepted_by_user_id,
+        accepted_at=invite.accepted_at.isoformat() if invite.accepted_at else None,
+    )
+
+
+def accept_invite(
+    invite_id: str,
+    payload: OrganizationInviteAccept,
+    store: SaaSStore,
+) -> OrganizationInviteSummary:
+    result = accept_organization_invite(
+        store,
+        invite_id=invite_id,
+        user=User(
+            id=payload.user_id,
+            email=payload.email,
+            display_name=payload.display_name,
+        ),
+    )
+    return OrganizationInviteSummary(
+        id=result.invite.id,
+        organization_id=result.invite.organization_id,
+        email=result.invite.email,
+        role=result.invite.role.value,
+        invited_by_user_id=result.invite.invited_by_user_id,
+        status=result.invite.status.value,
+        accepted_by_user_id=result.invite.accepted_by_user_id,
+        accepted_at=result.invite.accepted_at.isoformat() if result.invite.accepted_at else None,
+    )
+
+
 def create_app(store: SaaSStore | None = None) -> FastAPI:
     app = FastAPI(
         title=API_TITLE,
@@ -430,6 +532,31 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> list[MembershipSummary]:
         return list_membership_summaries(user.id, organization_id, request.app.state.store)
+
+    @app.get(
+        "/organizations/{organization_id}/invites",
+        response_model=list[OrganizationInviteSummary],
+        tags=["organizations"],
+    )
+    def organization_invites(
+        organization_id: str,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> list[OrganizationInviteSummary]:
+        return list_organization_invite_summaries(user.id, organization_id, request.app.state.store)
+
+    @app.post(
+        "/organizations/{organization_id}/invites",
+        response_model=OrganizationInviteSummary,
+        tags=["organizations"],
+    )
+    def organization_create_invite(
+        organization_id: str,
+        payload: OrganizationInviteCreate,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> OrganizationInviteSummary:
+        return create_invite(user.id, organization_id, payload, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/meters",
@@ -507,6 +634,18 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> LocalAnalysisRunResponse:
         return execute_local_analysis_run(user.id, organization_id, payload, request.app.state.store)
+
+    @app.post(
+        "/invites/{invite_id}/accept",
+        response_model=OrganizationInviteSummary,
+        tags=["organizations"],
+    )
+    def organization_accept_invite(
+        invite_id: str,
+        payload: OrganizationInviteAccept,
+        request: Request,
+    ) -> OrganizationInviteSummary:
+        return accept_invite(invite_id, payload, request.app.state.store)
 
     return app
 

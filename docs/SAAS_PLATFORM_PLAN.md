@@ -5,7 +5,7 @@
 ### Architecture and product shape today
 - The repo currently contains a **single-tenant Streamlit dashboard** with all legacy UI and workflow in one entry-point (`app.py`).
 - The SaaS direction no longer depends on Streamlit as the visualization or dashboard engine. The current UI can be overhauled, replaced, or retired.
-- Current backend SaaS scaffolding exists in `backend/`, including FastAPI app setup, tenant domain models, RBAC guards, SQLite-compatible migration scaffolding, onboarding, and tenant-scoped listing routes.
+- Current backend SaaS scaffolding exists in `backend/`, including FastAPI app setup, tenant domain models, RBAC guards, SQLite-compatible migration scaffolding, onboarding, invite acceptance flow, and tenant-scoped listing routes.
 - The legacy app allows users to upload CSVs for energy, HDD, CDD, and SEU mapping, then performs baseline and comparison analysis.
 - Client selection is file-based from `config/clients/*.yaml`, which is a good foundation for future tenant templates.
 

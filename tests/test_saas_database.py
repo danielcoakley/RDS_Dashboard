@@ -18,6 +18,7 @@ def test_initialize_database_creates_tenant_skeleton_tables():
         "users",
         "organizations",
         "memberships",
+        "organization_invites",
         "sites",
         "meters",
     }.issubset(tables)
@@ -32,6 +33,8 @@ def test_migrations_are_idempotent():
         "001_tenant_skeleton",
         "002_runs_and_reports",
         "003_audit_events",
+        "004_invites",
+        "005_expand_audit_actions",
     ]
 
 

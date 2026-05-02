@@ -1,5 +1,5 @@
 from backend.database import initialize_database
-from backend.domain import Membership, Meter, Organization, Role, Site, User
+from backend.domain import InviteStatus, Membership, Meter, Organization, OrganizationInvite, Role, Site, User
 from backend.store import SaaSStore
 
 
@@ -78,3 +78,33 @@ def test_store_memberships_can_feed_access_guards():
     assert memberships[0].user_id == "user_1"
     assert memberships[0].organization_id == "org_1"
     assert memberships[0].role == Role.MANAGER
+
+
+def test_store_lists_invites_by_tenant_scope():
+    store = SaaSStore(initialize_database())
+    store.create_user(User(id="owner_1", email="owner@example.com", display_name="Owner"))
+    store.create_user(User(id="owner_2", email="other@example.com", display_name="Other"))
+    store.create_organization(Organization(id="org_1", name="Example Energy", slug="example-energy"))
+    store.create_organization(Organization(id="org_2", name="Other Energy", slug="other-energy"))
+    store.create_organization_invite(
+        OrganizationInvite(
+            id="invite_1",
+            organization_id="org_1",
+            email="invitee@example.com",
+            role=Role.MANAGER,
+            invited_by_user_id="owner_1",
+        )
+    )
+    store.create_organization_invite(
+        OrganizationInvite(
+            id="invite_2",
+            organization_id="org_2",
+            email="second@example.com",
+            role=Role.VIEWER,
+            invited_by_user_id="owner_2",
+        )
+    )
+
+    invites = store.list_organization_invites("org_1", status=InviteStatus.PENDING)
+
+    assert [invite["id"] for invite in invites] == ["invite_1"]

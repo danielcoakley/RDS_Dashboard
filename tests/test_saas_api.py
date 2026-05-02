@@ -4,10 +4,15 @@ from backend.api import (
     API_TITLE,
     LocalAnalysisRunCreate,
     OwnerOrganizationCreate,
+    OrganizationInviteAccept,
+    OrganizationInviteCreate,
+    accept_invite,
     create_app,
+    create_invite,
     execute_local_analysis_run,
     health_check,
     list_audit_event_summaries,
+    list_organization_invite_summaries,
     list_membership_summaries,
     list_meter_summaries,
     list_report_summaries,
@@ -40,12 +45,14 @@ def test_api_app_registers_system_routes():
         "/organizations/onboard-owner",
         "/organizations/{organization_id}/sites",
         "/organizations/{organization_id}/memberships",
+        "/organizations/{organization_id}/invites",
         "/organizations/{organization_id}/meters",
         "/organizations/{organization_id}/uploads",
         "/organizations/{organization_id}/runs",
         "/organizations/{organization_id}/reports",
         "/organizations/{organization_id}/audit-events",
         "/organizations/{organization_id}/runs/execute-local",
+        "/invites/{invite_id}/accept",
         "/me/organizations",
     }.issubset(routes)
 
@@ -197,6 +204,65 @@ def test_membership_summaries_require_membership_management_permission():
     try:
         list_membership_summaries("viewer_1", "org_1", store)
         assert False, "Expected viewer membership access to be denied"
+    except AccessDenied:
+        pass
+
+
+def test_invite_summaries_and_acceptance_flow_are_tenant_safe():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_2",
+            email="other@example.com",
+            display_name="Other Owner",
+            organization_id="org_2",
+            organization_name="Other Energy",
+            organization_slug="other-energy",
+        ),
+        store,
+    )
+
+    created = create_invite(
+        "owner_1",
+        "org_1",
+        OrganizationInviteCreate(
+            invite_id="invite_1",
+            email="invitee@example.com",
+            role="viewer",
+        ),
+        store,
+    )
+
+    invites = list_organization_invite_summaries("owner_1", "org_1", store)
+    accepted = accept_invite(
+        "invite_1",
+        OrganizationInviteAccept(
+            user_id="user_2",
+            email="invitee@example.com",
+            display_name="Invitee",
+        ),
+        store,
+    )
+
+    assert created.id == "invite_1"
+    assert [invite.id for invite in invites] == ["invite_1"]
+    assert accepted.status == "accepted"
+    assert accepted.accepted_by_user_id == "user_2"
+
+    try:
+        list_organization_invite_summaries("owner_2", "org_1", store)
+        assert False, "Expected cross-tenant invite listing to be denied"
     except AccessDenied:
         pass
 

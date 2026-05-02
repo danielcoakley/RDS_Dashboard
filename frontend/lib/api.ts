@@ -21,6 +21,17 @@ export type MembershipSummary = {
   is_active: boolean;
 };
 
+export type OrganizationInviteSummary = {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: string;
+  invited_by_user_id: string;
+  status: string;
+  accepted_by_user_id: string | null;
+  accepted_at: string | null;
+};
+
 export type MeterSummary = {
   id: string;
   organization_id: string;
@@ -141,6 +152,13 @@ export function getOrganizationMemberships(
   organizationId: string
 ): Promise<MembershipSummary[]> {
   return apiFetch<MembershipSummary[]>(`/organizations/${organizationId}/memberships`, userId);
+}
+
+export function getOrganizationInvites(
+  userId: string,
+  organizationId: string
+): Promise<OrganizationInviteSummary[]> {
+  return apiFetch<OrganizationInviteSummary[]>(`/organizations/${organizationId}/invites`, userId);
 }
 
 export function getOrganizationMeters(

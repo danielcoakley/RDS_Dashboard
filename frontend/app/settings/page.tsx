@@ -2,7 +2,7 @@ import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { loadSettingsData } from "../../lib/settings-data";
 
 export default async function SettingsPage() {
-  const { mode, sites, meters, memberships, auditEvents } = await loadSettingsData();
+  const { mode, sites, meters, memberships, invites, auditEvents } = await loadSettingsData();
   const activeMembers = memberships.filter((membership) => membership.is_active);
   const seuMeters = meters.filter((meter) => meter.is_seu);
 
@@ -37,6 +37,10 @@ export default async function SettingsPage() {
         <div className="summaryTile">
           <span>Audit records</span>
           <strong>{auditEvents.length}</strong>
+        </div>
+        <div className="summaryTile">
+          <span>Open invites</span>
+          <strong>{invites.filter((invite) => invite.status === "pending").length}</strong>
         </div>
       </section>
 
@@ -77,6 +81,27 @@ export default async function SettingsPage() {
                 <div>
                   <strong>{meters.filter((meter) => meter.site_id === site.id).length} meters</strong>
                   <span>{site.id}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="listPanel">
+          <div className="sectionHeader">
+            <h2>Pending invites</h2>
+            <span>Invite workflow</span>
+          </div>
+          <div className="rowList">
+            {invites.map((invite) => (
+              <div className="dataRow" key={invite.id}>
+                <div>
+                  <strong>{invite.email}</strong>
+                  <span>{invite.id}</span>
+                </div>
+                <div>
+                  <strong>{invite.role}</strong>
+                  <span>{invite.status}</span>
                 </div>
               </div>
             ))}
