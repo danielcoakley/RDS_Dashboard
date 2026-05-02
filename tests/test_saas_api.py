@@ -7,12 +7,14 @@ from backend.api import (
     OwnerOrganizationCreate,
     OrganizationInviteAccept,
     OrganizationInviteCreate,
+    MeterCreate,
     SiteCreate,
     UploadCreate,
     accept_invite,
     create_dev_session,
     create_app,
     create_invite,
+    create_meter_summary,
     create_site_summary,
     create_upload_summary,
     execute_local_analysis_run,
@@ -572,6 +574,70 @@ def test_create_site_summary_requires_organization_management_permission():
             store,
         )
         assert False, "Expected cross-tenant site creation to be denied"
+    except AccessDenied:
+        pass
+
+
+def test_create_meter_summary_requires_organization_management_permission():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_2",
+            email="other@example.com",
+            display_name="Other Owner",
+            organization_id="org_2",
+            organization_name="Other Energy",
+            organization_slug="other-energy",
+        ),
+        store,
+    )
+    store.create_site(Site(id="site_1", organization_id="org_1", name="Main Site", timezone="Europe/London"))
+
+    created = create_meter_summary(
+        "owner_1",
+        "org_1",
+        MeterCreate(
+            meter_id="meter_1",
+            site_id="site_1",
+            display_name="Main Electricity",
+            commodity="electricity",
+            unit="kWh",
+            source_column="Main Electricity",
+            is_seu=True,
+        ),
+        store,
+    )
+    assert created.id == "meter_1"
+    assert created.organization_id == "org_1"
+    assert created.is_seu is True
+
+    try:
+        create_meter_summary(
+            "owner_2",
+            "org_1",
+            MeterCreate(
+                meter_id="meter_2",
+                site_id="site_1",
+                display_name="Blocked Meter",
+                commodity="gas",
+                unit="kWh",
+                source_column="Main Gas",
+                is_seu=False,
+            ),
+            store,
+        )
+        assert False, "Expected cross-tenant meter creation to be denied"
     except AccessDenied:
         pass
 

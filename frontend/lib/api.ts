@@ -88,6 +88,16 @@ export type MeterSummary = {
   is_seu: boolean;
 };
 
+export type MeterCreatePayload = {
+  meter_id: string;
+  site_id: string;
+  display_name: string;
+  commodity: string;
+  unit: string;
+  source_column: string;
+  is_seu?: boolean;
+};
+
 export type LocalAnalysisRunPayload = {
   site_id: string;
   upload_id: string;
@@ -361,6 +371,23 @@ export function getOrganizationMeters(
     `/organizations/${organizationId}/meters${query}`,
     userId,
     undefined,
+    authToken
+  );
+}
+
+export function createOrganizationMeter(
+  userId: string,
+  organizationId: string,
+  payload: MeterCreatePayload,
+  authToken?: string | null
+): Promise<MeterSummary> {
+  return apiFetch<MeterSummary>(
+    `/organizations/${organizationId}/meters`,
+    userId,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
     authToken
   );
 }

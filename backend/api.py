@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from .access_control import require_permission
 from .auth_context import AuthenticatedUser, dev_token_from_claims, request_authenticated_user
 from .database import initialize_database
-from .domain import AuditAction, AuditEvent, Organization, Role, Site, Upload, UploadStatus, User
+from .domain import AuditAction, AuditEvent, Meter, Organization, Role, Site, Upload, UploadStatus, User
 from .invitations import (
     accept_organization_invite,
     create_organization_invite,
@@ -114,6 +114,16 @@ class MeterSummary(BaseModel):
     unit: str
     source_column: str
     is_seu: bool
+
+
+class MeterCreate(BaseModel):
+    meter_id: str
+    site_id: str
+    display_name: str
+    commodity: str
+    unit: str
+    source_column: str
+    is_seu: bool = False
 
 
 class UploadSummary(BaseModel):
@@ -384,6 +394,42 @@ def list_meter_summaries(
         )
         for meter in store.list_meters(organization_id=organization_id, site_id=site_id)
     ]
+
+
+def create_meter_summary(
+    user_id: str,
+    organization_id: str,
+    payload: MeterCreate,
+    store: SaaSStore,
+) -> MeterSummary:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.MANAGE_ORGANIZATION,
+    )
+    meter = Meter(
+        id=payload.meter_id,
+        organization_id=organization_id,
+        site_id=payload.site_id,
+        display_name=payload.display_name,
+        commodity=payload.commodity,
+        unit=payload.unit,
+        source_column=payload.source_column,
+        is_seu=payload.is_seu,
+    )
+    with store.conn:
+        store.create_meter(meter)
+    return MeterSummary(
+        id=meter.id,
+        organization_id=meter.organization_id,
+        site_id=meter.site_id,
+        display_name=meter.display_name,
+        commodity=meter.commodity,
+        unit=meter.unit,
+        source_column=meter.source_column,
+        is_seu=meter.is_seu,
+    )
 
 
 def list_upload_summaries(
@@ -778,6 +824,19 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         site_id: str | None = None,
     ) -> list[MeterSummary]:
         return list_meter_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
+
+    @app.post(
+        "/organizations/{organization_id}/meters",
+        response_model=MeterSummary,
+        tags=["organizations"],
+    )
+    def organization_create_meter(
+        organization_id: str,
+        payload: MeterCreate,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> MeterSummary:
+        return create_meter_summary(user.id, organization_id, payload, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/uploads",

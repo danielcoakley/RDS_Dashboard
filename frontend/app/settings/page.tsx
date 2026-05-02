@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
 import {
+  createOrganizationMeter,
   createOrganizationInvite,
   createOrganizationSite,
   revokeOrganizationInvite
@@ -38,6 +39,13 @@ function settingsMessage(
       body: "The new site is now part of your organization."
     };
   }
+  if (status === "meter-created") {
+    return {
+      tone: "success",
+      title: "Meter added",
+      body: "The new meter is now available for uploads and analysis."
+    };
+  }
   if (error === "missing-fields") {
     return {
       tone: "error",
@@ -64,6 +72,13 @@ function settingsMessage(
       tone: "error",
       title: "Site not added",
       body: "We could not add that site. Check details and try again."
+    };
+  }
+  if (error === "meter-failed") {
+    return {
+      tone: "error",
+      title: "Meter not added",
+      body: "We could not add that meter. Check details and try again."
     };
   }
   return null;
@@ -171,6 +186,49 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     }
   }
 
+  async function createMeterAction(formData: FormData) {
+    "use server";
+
+    const siteId = String(formData.get("site_id") ?? "").trim();
+    const displayName = String(formData.get("display_name") ?? "").trim();
+    const commodity = String(formData.get("commodity") ?? "").trim();
+    const unit = String(formData.get("unit") ?? "").trim();
+    const sourceColumn = String(formData.get("source_column") ?? "").trim();
+    const isSeu = String(formData.get("is_seu") ?? "").trim() === "on";
+    const session = await readAppSession();
+
+    if (!siteId || !displayName || !commodity || !unit || !sourceColumn) {
+      redirect("/settings?error=missing-fields");
+    }
+    if (!session.userId || !session.organizationId) {
+      redirect("/settings?error=session-missing");
+    }
+
+    const meterId = `meter_${Date.now()}`;
+    try {
+      await createOrganizationMeter(
+        session.userId,
+        session.organizationId,
+        {
+          meter_id: meterId,
+          site_id: siteId,
+          display_name: displayName,
+          commodity,
+          unit,
+          source_column: sourceColumn,
+          is_seu: isSeu
+        },
+        session.authToken
+      );
+      revalidatePath("/settings");
+      revalidatePath("/dashboard");
+      revalidatePath("/uploads");
+      redirect("/settings?status=meter-created");
+    } catch {
+      redirect("/settings?error=meter-failed");
+    }
+  }
+
   return (
     <WorkspaceShell
       currentPath="/settings"
@@ -273,6 +331,41 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               </div>
             ))}
           </div>
+          <form action={createMeterAction} className="inlineFormWide">
+            <label className="authField">
+              <span>Site</span>
+              <select name="site_id" defaultValue={sites[0]?.id ?? ""}>
+                {sites.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="authField">
+              <span>Meter name</span>
+              <input name="display_name" type="text" placeholder="Main Electricity" />
+            </label>
+            <label className="authField">
+              <span>Commodity</span>
+              <input name="commodity" type="text" placeholder="electricity" />
+            </label>
+            <label className="authField">
+              <span>Unit</span>
+              <input name="unit" type="text" placeholder="kWh" />
+            </label>
+            <label className="authField">
+              <span>Source column</span>
+              <input name="source_column" type="text" placeholder="Main Electricity" />
+            </label>
+            <label className="authCheckbox">
+              <input name="is_seu" type="checkbox" />
+              <span>SEU meter</span>
+            </label>
+            <button type="submit" className="btn btnPrimary btnSm">
+              Add meter
+            </button>
+          </form>
         </div>
 
         <div className="listPanel">
