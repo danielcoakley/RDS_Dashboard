@@ -25,6 +25,7 @@ For local session-style testing, you can also set:
 
 - `/signup` creates an owner user, creates an organization, and opens a local dev session.
 - `/login` creates a local dev session for an existing user and optional organization membership.
+- `/organizations` lets a signed-in user choose which tenant context to open when they belong to more than one organization.
 - `/join/[inviteId]` accepts an invite and then opens a local dev session.
 - `/logout` clears the local session cookies.
 

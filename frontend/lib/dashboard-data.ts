@@ -12,6 +12,7 @@ import {
   type SiteSummary,
   type UploadSummary
 } from "./api";
+import { redirect } from "next/navigation";
 import { readAppSession } from "./session";
 
 export type DashboardMode = "demo" | "live";
@@ -118,6 +119,10 @@ export async function loadDashboardData(): Promise<DashboardData> {
   const userId = session.userId ?? process.env.DEMO_USER_ID;
   const organizationId = session.organizationId ?? process.env.DEMO_ORGANIZATION_ID;
   const authToken = session.authToken;
+
+  if (session.userId && !session.organizationId) {
+    redirect("/organizations");
+  }
 
   if (!userId || !organizationId) {
     return demoData;

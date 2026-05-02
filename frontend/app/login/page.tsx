@@ -42,7 +42,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         role: session.role,
         authToken: session.auth_token
       });
-      redirect("/dashboard");
+      redirect(session.organization_id ? "/dashboard" : "/organizations");
     } catch {
       redirect("/login?error=session-failed");
     }

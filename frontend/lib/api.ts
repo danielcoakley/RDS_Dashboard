@@ -190,8 +190,11 @@ async function apiFetch<T>(
   return response.json() as Promise<T>;
 }
 
-export function getMyOrganizations(userId: string): Promise<OrganizationSummary[]> {
-  return apiFetch<OrganizationSummary[]>("/me/organizations", userId);
+export function getMyOrganizations(
+  userId: string,
+  authToken?: string | null
+): Promise<OrganizationSummary[]> {
+  return apiFetch<OrganizationSummary[]>("/me/organizations", userId, undefined, authToken);
 }
 
 export async function createOwnerOrganization(

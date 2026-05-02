@@ -17,7 +17,7 @@ This backlog is ordered by dependency and aligned to `docs/SAAS_PLATFORM_PLAN.md
 3. Add database schema for users, organizations, memberships, sites, and meters. Initial local SQLite-compatible scaffolding exists in `backend/migrations/001_tenant_skeleton.sql`, with repository helpers in `backend/store.py` and owner-organization onboarding in `backend/onboarding.py`.
 4. Add tenant-scoped API/service access checks. Initial service-boundary guards exist in `backend/access_control.py`.
 5. Add invite and membership management flow. Initial local invite schema, invite acceptance service, audit events, tenant-guarded invite listing/creation routes, and settings-page invite creation UI now exist in `backend/migrations/004_invites.sql`, `backend/invitations.py`, `backend/api.py`, and `frontend/app/settings/page.tsx`.
-6. Add basic dashboard shell after login. Use the selected Next.js frontend direction; the API now exposes local owner-organization onboarding, local dev-session creation, invite management, user organization listing, and tenant-guarded site/meter listing routes that can back the first authenticated shell.
+6. Add basic dashboard shell after login. Use the selected Next.js frontend direction; the API now exposes local owner-organization onboarding, local dev-session creation, invite management, user organization listing, and tenant-guarded site/meter listing routes that can back the first authenticated shell. The frontend now includes local login, signup, invite acceptance, logout, and organization-selection pages backed by HTTP-only dev session cookies.
 7. Add integration tests proving two tenants cannot see each other's resources.
 
 ## Milestone 2: Ingestion and Run Orchestration

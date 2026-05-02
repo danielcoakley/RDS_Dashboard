@@ -38,7 +38,9 @@ export function WorkspaceShell({
         </Link>
         <div className="tenantBlock">
           <span className="tenantLabel">Tenant</span>
-          <strong>RDS Site</strong>
+          <Link href="/organizations" className="tenantLink">
+            <strong>Switch organization</strong>
+          </Link>
         </div>
         <nav className="sideNav" aria-label="Workspace sections">
           {navItems.map((item) => (
