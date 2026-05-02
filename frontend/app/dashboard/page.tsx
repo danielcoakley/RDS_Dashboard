@@ -3,7 +3,9 @@ import { EnergyPerformanceChart } from "../../components/EnergyPerformanceChart"
 import { loadDashboardData } from "../../lib/dashboard-data";
 
 export default async function DashboardPage() {
-  const { sites, meters, uploads, runs, reports } = await loadDashboardData();
+  const { mode, sites, meters, uploads, runs, reports, auditEvents } = await loadDashboardData();
+  const latestRun = runs[0];
+  const modeLabel = mode === "live" ? "Live tenant data" : "Demo workspace";
 
   return (
     <main className="appShell">
@@ -37,18 +39,35 @@ export default async function DashboardPage() {
           <div className="userMenu">Owner</div>
         </header>
 
+        <div className="modeBanner" role="status" aria-live="polite">
+          <strong>{modeLabel}</strong>
+          <span>
+            {mode === "live"
+              ? "This view is reading tenant-scoped resources from the FastAPI backend."
+              : "Set DEMO_USER_ID and DEMO_ORGANIZATION_ID to hydrate this dashboard from the API."}
+          </span>
+        </div>
+
         <section className="summaryGrid" id="overview" aria-label="Summary metrics">
           <div className="summaryTile">
             <span>Current run status</span>
-            <strong>{runs[0]?.status ?? "Ready"}</strong>
+            <strong>{latestRun?.status ?? "Ready"}</strong>
           </div>
           <div className="summaryTile">
             <span>Active meters</span>
             <strong>{meters.length}</strong>
           </div>
           <div className="summaryTile">
+            <span>Recent uploads</span>
+            <strong>{uploads.length}</strong>
+          </div>
+          <div className="summaryTile">
             <span>Report artifacts</span>
             <strong>{reports.length}</strong>
+          </div>
+          <div className="summaryTile">
+            <span>Audit events</span>
+            <strong>{auditEvents.length}</strong>
           </div>
         </section>
 
@@ -103,6 +122,27 @@ export default async function DashboardPage() {
             </div>
           </div>
 
+          <div className="listPanel" id="uploads">
+            <div className="sectionHeader">
+              <h2>Uploads</h2>
+              <span>Tenant resources</span>
+            </div>
+            <div className="rowList">
+              {uploads.map((upload) => (
+                <div className="dataRow" key={upload.id}>
+                  <div>
+                    <strong>{upload.category}</strong>
+                    <span>{upload.site_id}</span>
+                  </div>
+                  <div>
+                    <strong>{upload.status}</strong>
+                    <span>{upload.uploaded_by_user_id}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="listPanel" id="reports">
             <div className="sectionHeader">
               <h2>Reports</h2>
@@ -139,6 +179,29 @@ export default async function DashboardPage() {
                   <div>
                     <strong>{uploads.filter((upload) => upload.site_id === site.id).length} uploads</strong>
                     <span>{site.id}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="listPanel wide" id="audit">
+            <div className="sectionHeader">
+              <h2>Audit trail</h2>
+              <span>Owner visibility</span>
+            </div>
+            <div className="rowList">
+              {auditEvents.map((event) => (
+                <div className="dataRow" key={event.id}>
+                  <div>
+                    <strong>{event.action}</strong>
+                    <span>
+                      {event.resource_type} · {event.resource_id}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>{event.actor_user_id}</strong>
+                    <span>{event.metadata_json}</span>
                   </div>
                 </div>
               ))}

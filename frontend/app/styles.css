@@ -716,6 +716,29 @@ h3 {
   font-size: clamp(1.55rem, 1.1vw + 1.35rem, 2.05rem);
 }
 
+.modeBanner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 156, 174, 0.18);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(15, 156, 174, 0.08), rgba(99, 102, 241, 0.08));
+}
+
+.modeBanner strong {
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+}
+
+.modeBanner span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
 .userMenu {
   min-width: 92px;
   min-height: 42px;
@@ -731,7 +754,7 @@ h3 {
 
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -837,6 +860,10 @@ h3 {
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+
+  .modeBanner {
+    flex-direction: column;
   }
 }
 

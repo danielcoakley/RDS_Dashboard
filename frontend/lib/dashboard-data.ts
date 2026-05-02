@@ -1,9 +1,11 @@
 import {
+  getOrganizationAuditEvents,
   getOrganizationMeters,
   getOrganizationReports,
   getOrganizationRuns,
   getOrganizationSites,
   getOrganizationUploads,
+  type AuditEventSummary,
   type MeterSummary,
   type ReportSummary,
   type RunSummary,
@@ -11,15 +13,20 @@ import {
   type UploadSummary
 } from "./api";
 
-type DashboardData = {
+export type DashboardMode = "demo" | "live";
+
+export type DashboardData = {
+  mode: DashboardMode;
   sites: SiteSummary[];
   meters: MeterSummary[];
   uploads: UploadSummary[];
   runs: RunSummary[];
   reports: ReportSummary[];
+  auditEvents: AuditEventSummary[];
 };
 
 const demoData: DashboardData = {
+  mode: "demo",
   sites: [
     {
       id: "site_1",
@@ -82,6 +89,26 @@ const demoData: DashboardData = {
       storage_key: "tenants/org_1/sites/site_1/runs/run_1/reports/iso-summary.json",
       is_published: true
     }
+  ],
+  auditEvents: [
+    {
+      id: "audit_1",
+      organization_id: "org_1",
+      actor_user_id: "user_1",
+      action: "run_succeeded",
+      resource_type: "run",
+      resource_id: "run_1",
+      metadata_json: "{\"status\":\"succeeded\"}"
+    },
+    {
+      id: "audit_2",
+      organization_id: "org_1",
+      actor_user_id: "user_1",
+      action: "report_created",
+      resource_type: "report",
+      resource_id: "report_1",
+      metadata_json: "{\"report_type\":\"iso_summary\"}"
+    }
   ]
 };
 
@@ -94,14 +121,23 @@ export async function loadDashboardData(): Promise<DashboardData> {
   }
 
   try {
-    const [sites, meters, uploads, runs, reports] = await Promise.all([
+    const [sites, meters, uploads, runs, reports, auditEvents] = await Promise.all([
       getOrganizationSites(userId, organizationId),
       getOrganizationMeters(userId, organizationId),
       getOrganizationUploads(userId, organizationId),
       getOrganizationRuns(userId, organizationId),
-      getOrganizationReports(userId, organizationId)
+      getOrganizationReports(userId, organizationId),
+      getOrganizationAuditEvents(userId, organizationId)
     ]);
-    return { sites, meters, uploads, runs, reports };
+    return {
+      mode: "live",
+      sites,
+      meters,
+      uploads,
+      runs,
+      reports,
+      auditEvents
+    };
   } catch {
     return demoData;
   }
