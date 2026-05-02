@@ -8,12 +8,12 @@ export default async function ReportsPage() {
   return (
     <WorkspaceShell
       currentPath="/reports"
-      title="Report library"
-      modeLabel={mode === "live" ? "Live tenant data" : "Demo workspace"}
+      title="Reports"
+      modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
       modeDescription={
         mode === "live"
-          ? "Report metadata is coming from tenant-scoped backend records."
-          : "Set demo workspace variables to inspect live report artifacts from the API."
+          ? "Report metadata is loading from the backend."
+          : "This page is showing sample report records until a live organization is selected."
       }
     >
       <section className="summaryGrid" aria-label="Report metrics">
@@ -42,8 +42,8 @@ export default async function ReportsPage() {
       <section className="contentGrid">
         <div className="listPanel wide">
           <div className="sectionHeader">
-            <h2>Artifacts</h2>
-            <span>Storage references</span>
+            <h2>Report library</h2>
+            <span>Available files</span>
           </div>
           <div className="rowList">
             {reports.map((report) => (
@@ -63,7 +63,7 @@ export default async function ReportsPage() {
 
         <div className="listPanel">
           <div className="sectionHeader">
-            <h2>Published outputs</h2>
+            <h2>Published reports</h2>
             <span>Ready for review</span>
           </div>
           <div className="rowList">
@@ -84,8 +84,8 @@ export default async function ReportsPage() {
 
         <div className="listPanel">
           <div className="sectionHeader">
-            <h2>Run links</h2>
-            <span>Artifact lineage</span>
+            <h2>Linked runs</h2>
+            <span>Report source</span>
           </div>
           <div className="rowList">
             {runs.map((run) => (

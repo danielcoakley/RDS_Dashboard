@@ -10,12 +10,12 @@ export default async function RunsPage() {
   return (
     <WorkspaceShell
       currentPath="/runs"
-      title="Run operations"
-      modeLabel={mode === "live" ? "Live tenant data" : "Demo workspace"}
+      title="Run history"
+      modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
       modeDescription={
         mode === "live"
-          ? "Run status, outcomes, and audit events are coming from the backend orchestration seam."
-          : "Set demo workspace variables to inspect live run metadata and lifecycle events."
+          ? "Run status and outputs are loading from the backend."
+          : "This page is showing sample run history until a live organization is selected."
       }
     >
       <section className="summaryGrid" aria-label="Run metrics">
@@ -44,8 +44,8 @@ export default async function RunsPage() {
       <section className="contentGrid">
         <div className="listPanel wide">
           <div className="sectionHeader">
-            <h2>Run queue</h2>
-            <span>Status lifecycle</span>
+            <h2>Run history</h2>
+            <span>Status and completion</span>
           </div>
           <div className="rowList">
             {runs.map((run) => (
@@ -66,7 +66,7 @@ export default async function RunsPage() {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Report outputs</h2>
-            <span>Run to report</span>
+            <span>Generated files</span>
           </div>
           <div className="rowList">
             {reports.map((report) => (
@@ -87,7 +87,7 @@ export default async function RunsPage() {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Run activity</h2>
-            <span>Audit visibility</span>
+            <span>Audit events</span>
           </div>
           <div className="rowList">
             {runAuditEvents.map((event) => (

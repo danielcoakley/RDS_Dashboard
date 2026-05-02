@@ -9,12 +9,12 @@ export default async function UploadsPage() {
   return (
     <WorkspaceShell
       currentPath="/uploads"
-      title="Tenant uploads"
-      modeLabel={mode === "live" ? "Live tenant data" : "Demo workspace"}
+      title="Data uploads"
+      modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
       modeDescription={
         mode === "live"
-          ? "Uploads are being listed from tenant-scoped backend metadata."
-          : "Connect the demo workspace variables to view live upload records."
+          ? "Upload records are loading from the backend."
+          : "This page is showing sample uploads until a live organization is selected."
       }
     >
       <section className="summaryGrid" aria-label="Upload metrics">
@@ -43,8 +43,8 @@ export default async function UploadsPage() {
       <section className="contentGrid">
         <div className="listPanel wide">
           <div className="sectionHeader">
-            <h2>Upload inventory</h2>
-            <span>Storage-bound metadata</span>
+            <h2>Upload history</h2>
+            <span>File records</span>
           </div>
           <div className="rowList">
             {uploads.map((upload) => (
@@ -65,7 +65,7 @@ export default async function UploadsPage() {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Site coverage</h2>
-            <span>Upload counts</span>
+            <span>Files by site</span>
           </div>
           <div className="rowList">
             {sites.map((site) => {
@@ -88,8 +88,8 @@ export default async function UploadsPage() {
 
         <div className="listPanel">
           <div className="sectionHeader">
-            <h2>Checksums</h2>
-            <span>Integrity trace</span>
+            <h2>File checks</h2>
+            <span>Integrity fields</span>
           </div>
           <div className="rowList">
             {uploads.map((upload) => (

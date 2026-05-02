@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { loadWorkspaceContext } from "../lib/workspace-context";
 
 const navItems = [
   { href: "/dashboard", label: "Overview" },
@@ -18,14 +19,16 @@ type WorkspaceShellProps = {
   children: ReactNode;
 };
 
-export function WorkspaceShell({
+export async function WorkspaceShell({
   currentPath,
   title,
-  eyebrow = "Tenant dashboard",
+  eyebrow = "Workspace",
   modeLabel,
   modeDescription,
   children
 }: WorkspaceShellProps) {
+  const workspace = await loadWorkspaceContext();
+
   return (
     <main className="appShell">
       <aside className="sidebar">
@@ -37,9 +40,14 @@ export function WorkspaceShell({
           </div>
         </Link>
         <div className="tenantBlock">
-          <span className="tenantLabel">Tenant</span>
+          <span className="tenantLabel">Organization</span>
+          <strong>{workspace.orgName}</strong>
+          <span className="tenantMeta">{workspace.orgSlug}</span>
+        </div>
+        <div className="tenantActions">
+          <span className="roleBadge">{workspace.roleLabel}</span>
           <Link href="/organizations" className="tenantLink">
-            <strong>Switch organization</strong>
+            Switch
           </Link>
         </div>
         <nav className="sideNav" aria-label="Workspace sections">
@@ -61,7 +69,7 @@ export function WorkspaceShell({
             <p className="eyebrow">{eyebrow}</p>
             <h1>{title}</h1>
           </div>
-          <Link href="/logout" className="userMenu">
+          <Link href={workspace.hasLiveSession ? "/logout" : "/login"} className="userMenu">
             Sign out
           </Link>
         </header>

@@ -121,12 +121,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   return (
     <WorkspaceShell
       currentPath="/settings"
-      title="Tenant settings"
-      modeLabel={mode === "live" ? "Live tenant data" : "Demo workspace"}
+      title="Administration"
+      modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
       modeDescription={
         mode === "live"
-          ? "Memberships, site inventory, and audit visibility are coming from tenant-aware API routes."
-          : "Live settings data will appear here when demo workspace variables point at the backend."
+          ? "Members, invites, and organization records are loading from the backend."
+          : "This page is showing sample administration data until a live organization is selected."
       }
     >
       {pageMessage ? (
@@ -169,8 +169,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       <section className="contentGrid">
         <div className="listPanel wide">
           <div className="sectionHeader">
-            <h2>Organization members</h2>
-            <span>Owner-managed access</span>
+            <h2>Members</h2>
+            <span>Access and roles</span>
           </div>
           <div className="rowList">
             {memberships.map((membership) => (
@@ -191,7 +191,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Sites</h2>
-            <span>Tenant footprint</span>
+            <span>Organization footprint</span>
           </div>
           <div className="rowList">
             {sites.map((site) => (
@@ -211,8 +211,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
         <div className="listPanel">
           <div className="sectionHeader">
-            <h2>Pending invites</h2>
-            <span>Invite workflow</span>
+            <h2>Invites</h2>
+            <span>Pending access</span>
           </div>
           <form action={createInviteAction} className="inlineForm">
             <label className="authField">
@@ -257,8 +257,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
         <div className="listPanel">
           <div className="sectionHeader">
-            <h2>Audit visibility</h2>
-            <span>Recent activity</span>
+            <h2>Activity log</h2>
+            <span>Recent admin events</span>
           </div>
           <div className="rowList">
             {auditEvents.map((event) => (

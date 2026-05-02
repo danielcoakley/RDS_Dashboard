@@ -9,12 +9,12 @@ export default async function DashboardPage() {
   return (
     <WorkspaceShell
       currentPath="/dashboard"
-      title="Energy performance overview"
-      modeLabel={mode === "live" ? "Live tenant data" : "Demo workspace"}
+      title="Overview"
+      modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
       modeDescription={
         mode === "live"
-          ? "This view is reading tenant-scoped resources from the FastAPI backend."
-          : "Set DEMO_USER_ID and DEMO_ORGANIZATION_ID to hydrate this dashboard from the API."
+          ? "Organization data is loading from the backend."
+          : "This page is showing sample data until a live organization is selected."
       }
     >
       <section className="summaryGrid" id="overview" aria-label="Summary metrics">
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Meters</h2>
-            <span>Tenant scoped</span>
+            <span>Tracked assets</span>
           </div>
           <div className="rowList">
             {meters.map((meter) => (
@@ -72,8 +72,8 @@ export default async function DashboardPage() {
 
         <div className="listPanel wide">
           <div className="sectionHeader">
-            <h2>Recent runs</h2>
-            <span>Run lifecycle</span>
+            <h2>Run history</h2>
+            <span>Recent activity</span>
           </div>
           <div className="rowList">
             {runs.map((run) => (
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Uploads</h2>
-            <span>Tenant resources</span>
+            <span>Recent files</span>
           </div>
           <div className="rowList">
             {uploads.map((upload) => (
@@ -115,7 +115,7 @@ export default async function DashboardPage() {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Reports</h2>
-            <span>Published artifacts</span>
+            <span>Available outputs</span>
           </div>
           <div className="rowList">
             {reports.map((report) => (
@@ -135,8 +135,8 @@ export default async function DashboardPage() {
 
         <div className="listPanel">
           <div className="sectionHeader">
-            <h2>Sites and uploads</h2>
-            <span>Tenant resources</span>
+            <h2>Sites</h2>
+            <span>Coverage</span>
           </div>
           <div className="rowList">
             {sites.map((site) => (
@@ -156,8 +156,8 @@ export default async function DashboardPage() {
 
         <div className="listPanel wide">
           <div className="sectionHeader">
-            <h2>Audit trail</h2>
-            <span>Owner visibility</span>
+            <h2>Activity log</h2>
+            <span>Admin visibility</span>
           </div>
           <div className="rowList">
             {auditEvents.map((event) => (
