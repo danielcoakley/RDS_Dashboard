@@ -11,6 +11,16 @@ export type SiteSummary = {
   timezone: string;
 };
 
+export type MembershipSummary = {
+  user_id: string;
+  organization_id: string;
+  role: string;
+  invited_by_user_id: string | null;
+  email: string;
+  display_name: string;
+  is_active: boolean;
+};
+
 export type MeterSummary = {
   id: string;
   organization_id: string;
@@ -124,6 +134,13 @@ export function getOrganizationSites(
   organizationId: string
 ): Promise<SiteSummary[]> {
   return apiFetch<SiteSummary[]>(`/organizations/${organizationId}/sites`, userId);
+}
+
+export function getOrganizationMemberships(
+  userId: string,
+  organizationId: string
+): Promise<MembershipSummary[]> {
+  return apiFetch<MembershipSummary[]>(`/organizations/${organizationId}/memberships`, userId);
 }
 
 export function getOrganizationMeters(

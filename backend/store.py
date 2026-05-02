@@ -262,6 +262,25 @@ class SaaSStore:
             for row in rows
         ]
 
+    def list_organization_members(self, organization_id: str) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            """
+            SELECT
+                memberships.user_id,
+                memberships.organization_id,
+                memberships.role,
+                memberships.invited_by_user_id,
+                users.email,
+                users.display_name,
+                users.is_active
+            FROM memberships
+            JOIN users ON users.id = memberships.user_id
+            WHERE memberships.organization_id = ?
+            ORDER BY memberships.role, users.display_name, memberships.user_id
+            """,
+            (organization_id,),
+        ).fetchall()
+
     def list_sites(self, organization_id: str) -> list[Site]:
         rows = self.conn.execute(
             """

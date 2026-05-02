@@ -48,6 +48,16 @@ class SiteSummary(BaseModel):
     timezone: str
 
 
+class MembershipSummary(BaseModel):
+    user_id: str
+    organization_id: str
+    role: str
+    invited_by_user_id: str | None
+    email: str
+    display_name: str
+    is_active: bool
+
+
 class MeterSummary(BaseModel):
     id: str
     organization_id: str
@@ -179,6 +189,31 @@ def list_site_summaries(
             timezone=site.timezone,
         )
         for site in store.list_sites(organization_id)
+    ]
+
+
+def list_membership_summaries(
+    user_id: str,
+    organization_id: str,
+    store: SaaSStore,
+) -> list[MembershipSummary]:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.MANAGE_MEMBERS,
+    )
+    return [
+        MembershipSummary(
+            user_id=row["user_id"],
+            organization_id=row["organization_id"],
+            role=row["role"],
+            invited_by_user_id=row["invited_by_user_id"],
+            email=row["email"],
+            display_name=row["display_name"],
+            is_active=bool(row["is_active"]),
+        )
+        for row in store.list_organization_members(organization_id)
     ]
 
 
@@ -383,6 +418,18 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> list[SiteSummary]:
         return list_site_summaries(user.id, organization_id, request.app.state.store)
+
+    @app.get(
+        "/organizations/{organization_id}/memberships",
+        response_model=list[MembershipSummary],
+        tags=["organizations"],
+    )
+    def organization_memberships(
+        organization_id: str,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> list[MembershipSummary]:
+        return list_membership_summaries(user.id, organization_id, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/meters",

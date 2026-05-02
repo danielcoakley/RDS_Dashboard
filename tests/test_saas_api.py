@@ -8,6 +8,7 @@ from backend.api import (
     execute_local_analysis_run,
     health_check,
     list_audit_event_summaries,
+    list_membership_summaries,
     list_meter_summaries,
     list_report_summaries,
     list_run_summaries,
@@ -19,7 +20,7 @@ from backend.api import (
 )
 from backend.access_control import AccessDenied
 from backend.database import initialize_database
-from backend.domain import Meter, Role, Site
+from backend.domain import Membership, Meter, Role, Site, User
 from backend.store import SaaSStore
 from src.config_loader import load_client_config
 
@@ -38,6 +39,7 @@ def test_api_app_registers_system_routes():
         "/ready",
         "/organizations/onboard-owner",
         "/organizations/{organization_id}/sites",
+        "/organizations/{organization_id}/memberships",
         "/organizations/{organization_id}/meters",
         "/organizations/{organization_id}/uploads",
         "/organizations/{organization_id}/runs",
@@ -150,6 +152,57 @@ def test_site_and_meter_summaries_require_tenant_membership():
     try:
         list_site_summaries("user_2", "org_1", store)
         assert False, "Expected cross-tenant site listing to be denied"
+    except AccessDenied:
+        pass
+
+
+def test_membership_summaries_require_membership_management_permission():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_2",
+            email="other@example.com",
+            display_name="Other Owner",
+            organization_id="org_2",
+            organization_name="Other Energy",
+            organization_slug="other-energy",
+        ),
+        store,
+    )
+    store.create_user(User(id="viewer_1", email="viewer@example.com", display_name="Viewer"))
+    store.add_membership(
+        Membership(
+            user_id="viewer_1",
+            organization_id="org_1",
+            role=Role.VIEWER,
+            invited_by_user_id="owner_1",
+        )
+    )
+
+    members = list_membership_summaries("owner_1", "org_1", store)
+
+    assert [member.user_id for member in members] == ["owner_1", "viewer_1"]
+
+    try:
+        list_membership_summaries("viewer_1", "org_1", store)
+        assert False, "Expected viewer membership access to be denied"
+    except AccessDenied:
+        pass
+
+    try:
+        list_membership_summaries("owner_2", "org_1", store)
+        assert False, "Expected cross-tenant membership access to be denied"
     except AccessDenied:
         pass
 
