@@ -9,12 +9,14 @@ from backend.api import (
     OrganizationInviteCreate,
     MeterCreate,
     SiteCreate,
+    RunCreate,
     UploadCreate,
     accept_invite,
     create_dev_session,
     create_app,
     create_invite,
     create_meter_summary,
+    create_run_summary,
     create_site_summary,
     create_upload_summary,
     execute_local_analysis_run,
@@ -34,7 +36,7 @@ from backend.api import (
 )
 from backend.access_control import AccessDenied
 from backend.database import initialize_database
-from backend.domain import Membership, Meter, Role, Site, User
+from backend.domain import Membership, Meter, Role, Site, Upload, UploadStatus, User
 from backend.store import SaaSStore
 from src.config_loader import load_client_config
 
@@ -638,6 +640,66 @@ def test_create_meter_summary_requires_organization_management_permission():
             store,
         )
         assert False, "Expected cross-tenant meter creation to be denied"
+    except AccessDenied:
+        pass
+
+
+def test_create_run_summary_requires_manage_runs_permission():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_2",
+            email="other@example.com",
+            display_name="Other Owner",
+            organization_id="org_2",
+            organization_name="Other Energy",
+            organization_slug="other-energy",
+        ),
+        store,
+    )
+    store.create_site(Site(id="site_1", organization_id="org_1", name="Main Site", timezone="Europe/London"))
+    store.create_upload(
+        Upload(
+            id="upload_1",
+            organization_id="org_1",
+            site_id="site_1",
+            uploaded_by_user_id="owner_1",
+            category="energy",
+            storage_key="tenants/org_1/sites/site_1/uploads/upload_1/energy.csv",
+            checksum="abc123",
+            status=UploadStatus.STORED,
+        )
+    )
+
+    created = create_run_summary(
+        "owner_1",
+        "org_1",
+        RunCreate(run_id="run_1", site_id="site_1", upload_ids=["upload_1"]),
+        store,
+    )
+    assert created.id == "run_1"
+    assert created.organization_id == "org_1"
+    assert created.status == "queued"
+
+    try:
+        create_run_summary(
+            "owner_2",
+            "org_1",
+            RunCreate(run_id="run_2", site_id="site_1", upload_ids=["upload_1"]),
+            store,
+        )
+        assert False, "Expected cross-tenant run creation to be denied"
     except AccessDenied:
         pass
 

@@ -9,7 +9,19 @@ from pydantic import BaseModel
 from .access_control import require_permission
 from .auth_context import AuthenticatedUser, dev_token_from_claims, request_authenticated_user
 from .database import initialize_database
-from .domain import AuditAction, AuditEvent, Meter, Organization, Role, Site, Upload, UploadStatus, User
+from .domain import (
+    AuditAction,
+    AuditEvent,
+    Meter,
+    Organization,
+    Role,
+    Run,
+    RunStatus,
+    Site,
+    Upload,
+    UploadStatus,
+    User,
+)
 from .invitations import (
     accept_organization_invite,
     create_organization_invite,
@@ -143,6 +155,12 @@ class UploadCreate(BaseModel):
     category: str
     filename: str
     checksum: str
+
+
+class RunCreate(BaseModel):
+    run_id: str
+    site_id: str
+    upload_ids: list[str]
 
 
 class RunSummary(BaseModel):
@@ -537,6 +555,39 @@ def list_run_summaries(
     ]
 
 
+def create_run_summary(
+    user_id: str,
+    organization_id: str,
+    payload: RunCreate,
+    store: SaaSStore,
+) -> RunSummary:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.MANAGE_RUNS,
+    )
+    run = Run(
+        id=payload.run_id,
+        organization_id=organization_id,
+        site_id=payload.site_id,
+        requested_by_user_id=user_id,
+        upload_ids=payload.upload_ids,
+        status=RunStatus.QUEUED,
+    )
+    with store.conn:
+        store.create_run(run)
+    return RunSummary(
+        id=run.id,
+        organization_id=run.organization_id,
+        site_id=run.site_id,
+        requested_by_user_id=run.requested_by_user_id,
+        status=run.status.value,
+        error_message=run.error_message,
+        completed_at=run.completed_at.isoformat() if run.completed_at else None,
+    )
+
+
 def list_report_summaries(
     user_id: str,
     organization_id: str,
@@ -876,6 +927,19 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         site_id: str | None = None,
     ) -> list[RunSummary]:
         return list_run_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
+
+    @app.post(
+        "/organizations/{organization_id}/runs",
+        response_model=RunSummary,
+        tags=["runs"],
+    )
+    def organization_create_run(
+        organization_id: str,
+        payload: RunCreate,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> RunSummary:
+        return create_run_summary(user.id, organization_id, payload, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/reports",

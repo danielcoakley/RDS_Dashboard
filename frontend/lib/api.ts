@@ -155,6 +155,12 @@ export type RunSummary = {
   completed_at: string | null;
 };
 
+export type RunCreatePayload = {
+  run_id: string;
+  site_id: string;
+  upload_ids: string[];
+};
+
 export type AuditEventSummary = {
   id: string;
   organization_id: string;
@@ -464,6 +470,23 @@ export function getOrganizationRuns(
 ): Promise<RunSummary[]> {
   const query = siteId ? `?site_id=${encodeURIComponent(siteId)}` : "";
   return apiFetch<RunSummary[]>(`/organizations/${organizationId}/runs${query}`, userId, undefined, authToken);
+}
+
+export function createOrganizationRun(
+  userId: string,
+  organizationId: string,
+  payload: RunCreatePayload,
+  authToken?: string | null
+): Promise<RunSummary> {
+  return apiFetch<RunSummary>(
+    `/organizations/${organizationId}/runs`,
+    userId,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    authToken
+  );
 }
 
 export function getOrganizationAuditEvents(
