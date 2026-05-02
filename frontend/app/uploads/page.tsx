@@ -5,6 +5,13 @@ import { createOrganizationUpload } from "../../lib/api";
 import { loadDashboardData } from "../../lib/dashboard-data";
 import { readAppSession } from "../../lib/session";
 
+const sourceFileTypes = [
+  { value: "energy", label: "Energy Data" },
+  { value: "hdd", label: "HDD Data" },
+  { value: "cdd", label: "CDD Data" },
+  { value: "seu_mapping", label: "SEU Mapping" }
+];
+
 type UploadsPageProps = {
   searchParams: Promise<{ status?: string; error?: string }>;
 };
@@ -16,28 +23,28 @@ function uploadsMessage(
   if (status === "created") {
     return {
       tone: "success",
-      title: "Upload recorded",
-      body: "The upload metadata was added to your organization."
+      title: "Source file recorded",
+      body: "The file is now included in the baseline workflow checklist."
     };
   }
   if (error === "missing-fields") {
     return {
       tone: "error",
-      title: "Upload not recorded",
-      body: "Choose a site and enter category, filename, and checksum."
+      title: "Source file not recorded",
+      body: "Choose a site, source file type, filename, and checksum."
     };
   }
   if (error === "session-missing") {
     return {
       tone: "error",
-      title: "Upload not recorded",
-      body: "Sign in to an organization workspace before creating uploads."
+      title: "Source file not recorded",
+      body: "Sign in to an organization workspace before adding source files."
     };
   }
   if (error === "create-failed") {
     return {
       tone: "error",
-      title: "Upload not recorded",
+      title: "Source file not recorded",
       body: "We could not create that upload record. Check fields and try again."
     };
   }
@@ -92,12 +99,13 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
   return (
     <WorkspaceShell
       currentPath="/uploads"
-      title="Data uploads"
+      title="Source files"
+      eyebrow="Workflow"
       modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
       modeDescription={
         mode === "live"
-          ? "Upload records are loading from the backend."
-          : "This page is showing sample uploads until a live organization is selected."
+          ? "Record the four CSV inputs used by the original baseline dashboard workflow."
+          : "Sample source files are shown until a live organization is selected."
       }
     >
       {pageMessage ? (
@@ -136,8 +144,8 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
       <section className="contentGrid">
         <div className="listPanel wide">
           <div className="sectionHeader">
-            <h2>Upload history</h2>
-            <span>File records</span>
+            <h2>Required source files</h2>
+            <span>Energy, weather, and SEU mapping inputs</span>
           </div>
           <form action={createUploadAction} className="inlineFormWide">
             <label className="authField">
@@ -151,8 +159,14 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
               </select>
             </label>
             <label className="authField">
-              <span>Category</span>
-              <input name="category" type="text" placeholder="energy" />
+              <span>File type</span>
+              <select name="category" defaultValue="energy">
+                {sourceFileTypes.map((fileType) => (
+                  <option key={fileType.value} value={fileType.value}>
+                    {fileType.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="authField">
               <span>Filename</span>
@@ -163,14 +177,17 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
               <input name="checksum" type="text" placeholder="abc123" />
             </label>
             <button type="submit" className="btn btnPrimary btnSm">
-              Add upload
+              Add source file
             </button>
           </form>
           <div className="rowList">
             {uploads.map((upload) => (
               <div className="dataRow" key={upload.id}>
                 <div>
-                  <strong>{upload.category}</strong>
+                  <strong>
+                    {sourceFileTypes.find((fileType) => fileType.value === upload.category)?.label ??
+                      upload.category}
+                  </strong>
                   <span>{upload.storage_key}</span>
                 </div>
                 <div>

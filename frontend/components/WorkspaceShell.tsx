@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import { loadWorkspaceContext } from "../lib/workspace-context";
 
 const navItems = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/uploads", label: "Uploads" },
-  { href: "/runs", label: "Runs" },
+  { href: "/dashboard", label: "Analysis" },
+  { href: "/uploads", label: "Source files" },
+  { href: "/runs", label: "Run history" },
   { href: "/reports", label: "Reports" },
-  { href: "/settings", label: "Settings" }
+  { href: "/settings", label: "Setup" }
 ];
 
 type WorkspaceShellProps = {
@@ -36,7 +36,7 @@ export async function WorkspaceShell({
           <span className="sidebarBrandMark" aria-hidden />
           <div className="sidebarBrandMeta">
             <strong>RDS Energy</strong>
-            <span className="sidebarTagline">SaaS workspace</span>
+            <span className="sidebarTagline">Baseline analytics</span>
           </div>
         </Link>
         <div className="tenantBlock">

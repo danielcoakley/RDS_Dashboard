@@ -943,6 +943,38 @@ h3 {
   margin-bottom: 22px;
 }
 
+.workflowHero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.workflowHero h2 {
+  margin-bottom: 4px;
+  font-size: 1.08rem;
+}
+
+.workflowHero p {
+  max-width: 760px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.workflowHeroActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .summaryTile,
 .heroPanel,
 .chartPanel,
@@ -980,6 +1012,42 @@ h3 {
   gap: 18px;
 }
 
+.workflowGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(260px, 0.8fr) minmax(260px, 0.75fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.workflowTabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.workflowTabs a {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 650;
+  background: rgba(248, 250, 255, 0.7);
+}
+
+.workflowTabs a:hover {
+  border-color: var(--line-strong);
+  background: #fff;
+}
+
 .chartPanel,
 .listPanel {
   padding: 20px;
@@ -1002,6 +1070,56 @@ h3 {
   display: grid;
   gap: 10px;
   margin-top: 16px;
+}
+
+.stepList,
+.settingsGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.workflowStep {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(248, 250, 255, 0.72);
+}
+
+.workflowStep strong {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.93rem;
+}
+
+.workflowStep span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.stepStatusReady,
+.stepStatusPending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.stepStatusReady {
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+}
+
+.stepStatusPending {
+  color: #9a4a08;
+  background: rgba(249, 115, 22, 0.12);
 }
 
 .dataRow {
@@ -1028,8 +1146,14 @@ h3 {
   .landingHero,
   .appShell,
   .contentGrid,
+  .workflowGrid,
   .summaryGrid {
     grid-template-columns: 1fr;
+  }
+
+  .workflowHero {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .heroStatStrip {
