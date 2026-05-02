@@ -50,6 +50,27 @@ export type ReportSummary = {
   is_published: boolean;
 };
 
+export type UploadSummary = {
+  id: string;
+  organization_id: string;
+  site_id: string;
+  uploaded_by_user_id: string;
+  category: string;
+  storage_key: string;
+  checksum: string;
+  status: string;
+};
+
+export type RunSummary = {
+  id: string;
+  organization_id: string;
+  site_id: string;
+  requested_by_user_id: string;
+  status: string;
+  error_message: string | null;
+  completed_at: string | null;
+};
+
 export type AuditEventSummary = {
   id: string;
   organization_id: string;
@@ -121,6 +142,24 @@ export function getOrganizationReports(
 ): Promise<ReportSummary[]> {
   const query = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
   return apiFetch<ReportSummary[]>(`/organizations/${organizationId}/reports${query}`, userId);
+}
+
+export function getOrganizationUploads(
+  userId: string,
+  organizationId: string,
+  siteId?: string
+): Promise<UploadSummary[]> {
+  const query = siteId ? `?site_id=${encodeURIComponent(siteId)}` : "";
+  return apiFetch<UploadSummary[]>(`/organizations/${organizationId}/uploads${query}`, userId);
+}
+
+export function getOrganizationRuns(
+  userId: string,
+  organizationId: string,
+  siteId?: string
+): Promise<RunSummary[]> {
+  const query = siteId ? `?site_id=${encodeURIComponent(siteId)}` : "";
+  return apiFetch<RunSummary[]>(`/organizations/${organizationId}/runs${query}`, userId);
 }
 
 export function getOrganizationAuditEvents(

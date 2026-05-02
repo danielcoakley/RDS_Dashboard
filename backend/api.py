@@ -59,6 +59,27 @@ class MeterSummary(BaseModel):
     is_seu: bool
 
 
+class UploadSummary(BaseModel):
+    id: str
+    organization_id: str
+    site_id: str
+    uploaded_by_user_id: str
+    category: str
+    storage_key: str
+    checksum: str
+    status: str
+
+
+class RunSummary(BaseModel):
+    id: str
+    organization_id: str
+    site_id: str
+    requested_by_user_id: str
+    status: str
+    error_message: str | None
+    completed_at: str | None
+
+
 class ReportSummary(BaseModel):
     id: str
     organization_id: str
@@ -185,6 +206,59 @@ def list_meter_summaries(
             is_seu=meter.is_seu,
         )
         for meter in store.list_meters(organization_id=organization_id, site_id=site_id)
+    ]
+
+
+def list_upload_summaries(
+    user_id: str,
+    organization_id: str,
+    store: SaaSStore,
+    site_id: str | None = None,
+) -> list[UploadSummary]:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.READ,
+    )
+    return [
+        UploadSummary(
+            id=upload["id"],
+            organization_id=upload["organization_id"],
+            site_id=upload["site_id"],
+            uploaded_by_user_id=upload["uploaded_by_user_id"],
+            category=upload["category"],
+            storage_key=upload["storage_key"],
+            checksum=upload["checksum"],
+            status=upload["status"],
+        )
+        for upload in store.list_uploads(organization_id=organization_id, site_id=site_id)
+    ]
+
+
+def list_run_summaries(
+    user_id: str,
+    organization_id: str,
+    store: SaaSStore,
+    site_id: str | None = None,
+) -> list[RunSummary]:
+    require_permission(
+        store.list_memberships(user_id=user_id, organization_id=organization_id),
+        user_id=user_id,
+        organization_id=organization_id,
+        action=Action.READ,
+    )
+    return [
+        RunSummary(
+            id=run["id"],
+            organization_id=run["organization_id"],
+            site_id=run["site_id"],
+            requested_by_user_id=run["requested_by_user_id"],
+            status=run["status"],
+            error_message=run["error_message"],
+            completed_at=run["completed_at"],
+        )
+        for run in store.list_runs(organization_id=organization_id, site_id=site_id)
     ]
 
 
@@ -322,6 +396,32 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         site_id: str | None = None,
     ) -> list[MeterSummary]:
         return list_meter_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
+
+    @app.get(
+        "/organizations/{organization_id}/uploads",
+        response_model=list[UploadSummary],
+        tags=["uploads"],
+    )
+    def organization_uploads(
+        organization_id: str,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
+        site_id: str | None = None,
+    ) -> list[UploadSummary]:
+        return list_upload_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
+
+    @app.get(
+        "/organizations/{organization_id}/runs",
+        response_model=list[RunSummary],
+        tags=["runs"],
+    )
+    def organization_runs(
+        organization_id: str,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_user_from_header),
+        site_id: str | None = None,
+    ) -> list[RunSummary]:
+        return list_run_summaries(user.id, organization_id, request.app.state.store, site_id=site_id)
 
     @app.get(
         "/organizations/{organization_id}/reports",

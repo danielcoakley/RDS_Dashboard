@@ -10,7 +10,9 @@ from backend.api import (
     list_audit_event_summaries,
     list_meter_summaries,
     list_report_summaries,
+    list_run_summaries,
     list_site_summaries,
+    list_upload_summaries,
     list_user_organization_summaries,
     onboard_owner_organization,
     readiness_check,
@@ -37,6 +39,8 @@ def test_api_app_registers_system_routes():
         "/organizations/onboard-owner",
         "/organizations/{organization_id}/sites",
         "/organizations/{organization_id}/meters",
+        "/organizations/{organization_id}/uploads",
+        "/organizations/{organization_id}/runs",
         "/organizations/{organization_id}/reports",
         "/organizations/{organization_id}/audit-events",
         "/organizations/{organization_id}/runs/execute-local",
@@ -217,6 +221,42 @@ def test_report_summaries_are_tenant_guarded():
 
     assert [report.id for report in reports] == ["report_1"]
     assert reports[0].is_published
+
+
+def test_upload_and_run_summaries_are_tenant_guarded():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="user_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    store.create_site(Site(id="site_1", organization_id="org_1", name="Main Site", timezone="Europe/London"))
+    payload = LocalAnalysisRunCreate(
+        site_id="site_1",
+        upload_id="upload_1",
+        run_id="run_1",
+        report_id="report_1",
+        filename="energy.csv",
+        rows=[
+            {"Date": "2025-01-01", "Main Electricity": 100, "Main Gas": 80},
+            {"Date": "2025-02-01", "Main Electricity": 120, "Main Gas": 70},
+        ],
+        client_config=load_client_config("config/clients/example_client.yaml"),
+    )
+    execute_local_analysis_run("user_1", "org_1", payload, store)
+
+    uploads = list_upload_summaries("user_1", "org_1", store, site_id="site_1")
+    runs = list_run_summaries("user_1", "org_1", store, site_id="site_1")
+
+    assert [upload.id for upload in uploads] == ["upload_1"]
+    assert [run.id for run in runs] == ["run_1"]
+    assert runs[0].status == "succeeded"
 
 
 def test_audit_event_summaries_require_audit_permission():

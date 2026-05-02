@@ -1,19 +1,10 @@
 import Link from "next/link";
 import { EnergyPerformanceChart } from "../../components/EnergyPerformanceChart";
+import { loadDashboardData } from "../../lib/dashboard-data";
 
-const meters = [
-  { id: "meter-001", name: "Main Electricity", value: "412,800 kWh", status: "SEU" },
-  { id: "meter-002", name: "Main Gas", value: "289,400 kWh", status: "SEU" },
-  { id: "meter-003", name: "Office Lighting", value: "54,900 kWh", status: "Monitor" }
-];
+export default async function DashboardPage() {
+  const { sites, meters, uploads, runs, reports } = await loadDashboardData();
 
-const runs = [
-  { id: "run-1042", label: "April baseline comparison", status: "Succeeded" },
-  { id: "run-1041", label: "Q1 ISO summary", status: "Succeeded" },
-  { id: "run-1040", label: "SEU variance review", status: "Queued" }
-];
-
-export default function DashboardPage() {
   return (
     <main className="appShell">
       <aside className="sidebar">
@@ -49,15 +40,15 @@ export default function DashboardPage() {
         <section className="summaryGrid" id="overview" aria-label="Summary metrics">
           <div className="summaryTile">
             <span>Current run status</span>
-            <strong>Ready</strong>
+            <strong>{runs[0]?.status ?? "Ready"}</strong>
           </div>
           <div className="summaryTile">
             <span>Active meters</span>
-            <strong>3</strong>
+            <strong>{meters.length}</strong>
           </div>
           <div className="summaryTile">
             <span>Report artifacts</span>
-            <strong>12</strong>
+            <strong>{reports.length}</strong>
           </div>
         </section>
 
@@ -79,12 +70,12 @@ export default function DashboardPage() {
               {meters.map((meter) => (
                 <div className="dataRow" key={meter.id}>
                   <div>
-                    <strong>{meter.name}</strong>
+                    <strong>{meter.display_name}</strong>
                     <span>{meter.id}</span>
                   </div>
                   <div>
-                    <strong>{meter.value}</strong>
-                    <span>{meter.status}</span>
+                    <strong>{meter.unit}</strong>
+                    <span>{meter.is_seu ? "SEU" : "Monitor"}</span>
                   </div>
                 </div>
               ))}
@@ -100,11 +91,54 @@ export default function DashboardPage() {
               {runs.map((run) => (
                 <div className="dataRow" key={run.id}>
                   <div>
-                    <strong>{run.label}</strong>
-                    <span>{run.id}</span>
+                    <strong>{run.id}</strong>
+                    <span>{run.site_id}</span>
                   </div>
                   <div>
                     <strong>{run.status}</strong>
+                    <span>{run.error_message ?? "No errors"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="listPanel" id="reports">
+            <div className="sectionHeader">
+              <h2>Reports</h2>
+              <span>Published artifacts</span>
+            </div>
+            <div className="rowList">
+              {reports.map((report) => (
+                <div className="dataRow" key={report.id}>
+                  <div>
+                    <strong>{report.report_type}</strong>
+                    <span>{report.id}</span>
+                  </div>
+                  <div>
+                    <strong>{report.is_published ? "Published" : "Draft"}</strong>
+                    <span>{report.run_id}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="listPanel" id="settings">
+            <div className="sectionHeader">
+              <h2>Sites and uploads</h2>
+              <span>Tenant resources</span>
+            </div>
+            <div className="rowList">
+              {sites.map((site) => (
+                <div className="dataRow" key={site.id}>
+                  <div>
+                    <strong>{site.name}</strong>
+                    <span>{site.timezone}</span>
+                  </div>
+                  <div>
+                    <strong>{uploads.filter((upload) => upload.site_id === site.id).length} uploads</strong>
+                    <span>{site.id}</span>
                   </div>
                 </div>
               ))}
