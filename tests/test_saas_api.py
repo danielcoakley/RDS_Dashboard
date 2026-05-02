@@ -24,6 +24,7 @@ from backend.api import (
     list_user_organization_summaries,
     onboard_owner_organization,
     readiness_check,
+    revoke_invite,
 )
 from backend.access_control import AccessDenied
 from backend.database import initialize_database
@@ -49,6 +50,7 @@ def test_api_app_registers_system_routes():
         "/organizations/{organization_id}/sites",
         "/organizations/{organization_id}/memberships",
         "/organizations/{organization_id}/invites",
+        "/organizations/{organization_id}/invites/{invite_id}/revoke",
         "/organizations/{organization_id}/meters",
         "/organizations/{organization_id}/uploads",
         "/organizations/{organization_id}/runs",
@@ -302,6 +304,53 @@ def test_invite_summaries_and_acceptance_flow_are_tenant_safe():
     try:
         list_organization_invite_summaries("owner_2", "org_1", store)
         assert False, "Expected cross-tenant invite listing to be denied"
+    except AccessDenied:
+        pass
+
+
+def test_revoke_invite_is_tenant_guarded():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="owner_2",
+            email="other@example.com",
+            display_name="Other Owner",
+            organization_id="org_2",
+            organization_name="Other Energy",
+            organization_slug="other-energy",
+        ),
+        store,
+    )
+
+    create_invite(
+        "owner_1",
+        "org_1",
+        OrganizationInviteCreate(
+            invite_id="invite_1",
+            email="invitee@example.com",
+            role="viewer",
+        ),
+        store,
+    )
+
+    revoked = revoke_invite("owner_1", "org_1", "invite_1", store)
+
+    assert revoked.status == "revoked"
+
+    try:
+        revoke_invite("owner_2", "org_1", "invite_1", store)
+        assert False, "Expected cross-tenant revoke to be denied"
     except AccessDenied:
         pass
 

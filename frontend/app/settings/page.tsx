@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
-import { createOrganizationInvite } from "../../lib/api";
+import { createOrganizationInvite, revokeOrganizationInvite } from "../../lib/api";
 import { readAppSession } from "../../lib/session";
 import { loadSettingsData } from "../../lib/settings-data";
 
@@ -18,6 +18,13 @@ function settingsMessage(
       tone: "success",
       title: "Invite created",
       body: "The new invite is available in the tenant invite list."
+    };
+  }
+  if (status === "invite-revoked") {
+    return {
+      tone: "success",
+      title: "Invite revoked",
+      body: "The invite is no longer available for acceptance."
     };
   }
   if (error === "missing-fields") {
@@ -79,6 +86,33 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       );
       revalidatePath("/settings");
       redirect("/settings?status=invite-created");
+    } catch {
+      redirect("/settings?error=invite-failed");
+    }
+  }
+
+  async function revokeInviteAction(formData: FormData) {
+    "use server";
+
+    const inviteId = String(formData.get("invite_id") ?? "").trim();
+    const session = await readAppSession();
+
+    if (!inviteId) {
+      redirect("/settings?error=invite-failed");
+    }
+    if (!session.userId || !session.organizationId) {
+      redirect("/settings?error=session-missing");
+    }
+
+    try {
+      await revokeOrganizationInvite(
+        session.userId,
+        session.organizationId,
+        inviteId,
+        session.authToken
+      );
+      revalidatePath("/settings");
+      redirect("/settings?status=invite-revoked");
     } catch {
       redirect("/settings?error=invite-failed");
     }
@@ -208,6 +242,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                   <strong>{invite.role}</strong>
                   <span>{invite.status}</span>
                 </div>
+                {invite.status === "pending" ? (
+                  <form action={revokeInviteAction}>
+                    <input type="hidden" name="invite_id" value={invite.id} />
+                    <button type="submit" className="btn btnGhost btnSm">
+                      Revoke
+                    </button>
+                  </form>
+                ) : null}
               </div>
             ))}
           </div>

@@ -53,6 +53,7 @@ class AuditAction(str, Enum):
     REPORT_CREATED = "report_created"
     INVITE_CREATED = "invite_created"
     INVITE_ACCEPTED = "invite_accepted"
+    INVITE_REVOKED = "invite_revoked"
 
 
 @dataclass(frozen=True)

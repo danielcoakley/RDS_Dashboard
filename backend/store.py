@@ -266,6 +266,16 @@ class SaaSStore:
             (InviteStatus.ACCEPTED.value, accepted_by_user_id, accepted_at, invite_id),
         )
 
+    def revoke_organization_invite(self, invite_id: str) -> None:
+        self.conn.execute(
+            """
+            UPDATE organization_invites
+            SET status = ?, accepted_by_user_id = NULL, accepted_at = NULL
+            WHERE id = ?
+            """,
+            (InviteStatus.REVOKED.value, invite_id),
+        )
+
     def list_user_organizations(self, user_id: str) -> list[Organization]:
         rows = self.conn.execute(
             """

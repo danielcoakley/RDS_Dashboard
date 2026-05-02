@@ -35,6 +35,7 @@ def test_migrations_are_idempotent():
         "003_audit_events",
         "004_invites",
         "005_expand_audit_actions",
+        "006_expand_audit_actions_for_invite_revoke",
     ]
 
 

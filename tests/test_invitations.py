@@ -1,7 +1,11 @@
 from backend.access_control import AccessDenied
 from backend.database import initialize_database
 from backend.domain import InviteStatus, Organization, Role, User
-from backend.invitations import accept_organization_invite, create_organization_invite
+from backend.invitations import (
+    accept_organization_invite,
+    create_organization_invite,
+    revoke_organization_invite,
+)
 from backend.onboarding import create_owner_organization
 from backend.store import SaaSStore
 
@@ -96,3 +100,32 @@ def test_accept_organization_invite_requires_matching_email():
         assert False, "Expected invite acceptance to require matching email"
     except ValueError as exc:
         assert "email" in str(exc)
+
+
+def test_revoke_organization_invite_marks_pending_invite_as_revoked():
+    store = SaaSStore(initialize_database())
+    create_owner_organization(
+        store,
+        User(id="owner_1", email="owner@example.com", display_name="Owner"),
+        Organization(id="org_1", name="Example Energy", slug="example-energy"),
+    )
+    create_organization_invite(
+        store,
+        actor_user_id="owner_1",
+        organization_id="org_1",
+        invite_id="invite_1",
+        email="invitee@example.com",
+        role=Role.VIEWER,
+    )
+
+    invite = revoke_organization_invite(
+        store,
+        actor_user_id="owner_1",
+        organization_id="org_1",
+        invite_id="invite_1",
+    )
+
+    invite_row = store.get_organization_invite("invite_1")
+
+    assert invite.status == InviteStatus.REVOKED
+    assert invite_row["status"] == InviteStatus.REVOKED.value

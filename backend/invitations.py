@@ -125,3 +125,49 @@ def accept_organization_invite(
         membership=membership,
         user=user,
     )
+
+
+def revoke_organization_invite(
+    store: SaaSStore,
+    *,
+    actor_user_id: str,
+    organization_id: str,
+    invite_id: str,
+) -> OrganizationInvite:
+    require_permission(
+        store.list_memberships(user_id=actor_user_id, organization_id=organization_id),
+        user_id=actor_user_id,
+        organization_id=organization_id,
+        action=Action.MANAGE_MEMBERS,
+    )
+    invite_row = store.get_organization_invite(invite_id)
+    if invite_row is None:
+        raise ValueError(f"Invite {invite_id} was not found")
+    if invite_row["organization_id"] != organization_id:
+        raise ValueError(f"Invite {invite_id} does not belong to organization {organization_id}")
+    if invite_row["status"] != InviteStatus.PENDING.value:
+        raise ValueError(f"Invite {invite_id} is not pending")
+
+    revoked_invite = OrganizationInvite(
+        id=invite_row["id"],
+        organization_id=invite_row["organization_id"],
+        email=invite_row["email"],
+        role=Role(invite_row["role"]),
+        invited_by_user_id=invite_row["invited_by_user_id"],
+        status=InviteStatus.REVOKED,
+        accepted_by_user_id=None,
+        accepted_at=None,
+    )
+    audit_event = AuditEvent(
+        id=f"audit_revoke_{invite_id}",
+        organization_id=organization_id,
+        actor_user_id=actor_user_id,
+        action=AuditAction.INVITE_REVOKED,
+        resource_type="organization_invite",
+        resource_id=invite_id,
+        metadata={"email": revoked_invite.email, "role": revoked_invite.role.value},
+    )
+    with store.conn:
+        store.revoke_organization_invite(invite_id)
+        store.create_audit_event(audit_event)
+    return revoked_invite

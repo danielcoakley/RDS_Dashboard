@@ -10,7 +10,11 @@ from .access_control import require_permission
 from .auth_context import AuthenticatedUser, dev_token_from_claims, request_authenticated_user
 from .database import initialize_database
 from .domain import Organization, Role, User
-from .invitations import accept_organization_invite, create_organization_invite
+from .invitations import (
+    accept_organization_invite,
+    create_organization_invite,
+    revoke_organization_invite,
+)
 from .onboarding import create_owner_organization
 from .rbac import Action
 from .run_orchestration import AnalysisRunRequest, execute_analysis_run
@@ -525,6 +529,30 @@ def accept_invite(
     )
 
 
+def revoke_invite(
+    user_id: str,
+    organization_id: str,
+    invite_id: str,
+    store: SaaSStore,
+) -> OrganizationInviteSummary:
+    invite = revoke_organization_invite(
+        store,
+        actor_user_id=user_id,
+        organization_id=organization_id,
+        invite_id=invite_id,
+    )
+    return OrganizationInviteSummary(
+        id=invite.id,
+        organization_id=invite.organization_id,
+        email=invite.email,
+        role=invite.role.value,
+        invited_by_user_id=invite.invited_by_user_id,
+        status=invite.status.value,
+        accepted_by_user_id=invite.accepted_by_user_id,
+        accepted_at=invite.accepted_at.isoformat() if invite.accepted_at else None,
+    )
+
+
 def create_app(store: SaaSStore | None = None) -> FastAPI:
     app = FastAPI(
         title=API_TITLE,
@@ -616,6 +644,19 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
         user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> OrganizationInviteSummary:
         return create_invite(user.id, organization_id, payload, request.app.state.store)
+
+    @app.post(
+        "/organizations/{organization_id}/invites/{invite_id}/revoke",
+        response_model=OrganizationInviteSummary,
+        tags=["organizations"],
+    )
+    def organization_revoke_invite(
+        organization_id: str,
+        invite_id: str,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> OrganizationInviteSummary:
+        return revoke_invite(user.id, organization_id, invite_id, request.app.state.store)
 
     @app.get(
         "/organizations/{organization_id}/meters",

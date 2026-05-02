@@ -284,6 +284,22 @@ export function createOrganizationInvite(
   );
 }
 
+export function revokeOrganizationInvite(
+  userId: string,
+  organizationId: string,
+  inviteId: string,
+  authToken?: string | null
+): Promise<OrganizationInviteSummary> {
+  return apiFetch<OrganizationInviteSummary>(
+    `/organizations/${organizationId}/invites/${inviteId}/revoke`,
+    userId,
+    {
+      method: "POST"
+    },
+    authToken
+  );
+}
+
 export async function acceptOrganizationInvite(
   inviteId: string,
   payload: AcceptInvitePayload
