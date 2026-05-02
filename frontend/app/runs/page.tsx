@@ -49,6 +49,9 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
   const query = await searchParams;
   const { mode, runs, reports, uploads, sites, auditEvents } = await loadDashboardData();
   const canRequestRun = mode === "live" && sites.length > 0 && uploads.length > 0;
+  const hasWorkspaceSession = mode === "live";
+  const hasSites = sites.length > 0;
+  const hasUploads = uploads.length > 0;
   const successfulRuns = runs.filter((run) => run.status === "succeeded");
   const failedRuns = runs.filter((run) => run.status === "failed");
   const runAuditEvents = auditEvents.filter((event) => event.resource_type === "run");
@@ -139,6 +142,34 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
         <div className="summaryTile">
           <span>Run audit events</span>
           <strong>{runAuditEvents.length}</strong>
+        </div>
+      </section>
+      <section className="summaryGrid" aria-label="Run readiness">
+        <div className="summaryTile">
+          <span>Workspace</span>
+          <strong>{hasWorkspaceSession ? "Connected" : "Not connected"}</strong>
+        </div>
+        <div className="summaryTile">
+          <span>Sites configured</span>
+          <strong>{hasSites ? "Ready" : "Needs setup"}</strong>
+        </div>
+        <div className="summaryTile">
+          <span>Uploads available</span>
+          <strong>{hasUploads ? "Ready" : "Needs upload"}</strong>
+        </div>
+        <div className="summaryTile">
+          <span>Next step</span>
+          <strong>
+            {!hasWorkspaceSession ? (
+              <Link href="/login">Sign in</Link>
+            ) : !hasSites ? (
+              <Link href="/settings">Add a site</Link>
+            ) : !hasUploads ? (
+              <Link href="/uploads">Create upload</Link>
+            ) : (
+              "Request run"
+            )}
+          </strong>
         </div>
       </section>
 
