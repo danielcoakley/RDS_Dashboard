@@ -1,10 +1,88 @@
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
+import { createOrganizationInvite } from "../../lib/api";
+import { readAppSession } from "../../lib/session";
 import { loadSettingsData } from "../../lib/settings-data";
 
-export default async function SettingsPage() {
+type SettingsPageProps = {
+  searchParams: Promise<{ status?: string; error?: string }>;
+};
+
+function settingsMessage(
+  status: string | undefined,
+  error: string | undefined
+): { tone: "success" | "error"; title: string; body: string } | null {
+  if (status === "invite-created") {
+    return {
+      tone: "success",
+      title: "Invite created",
+      body: "The new invite is available in the tenant invite list."
+    };
+  }
+  if (error === "missing-fields") {
+    return {
+      tone: "error",
+      title: "Invite not created",
+      body: "Enter an email address and role before sending an invite."
+    };
+  }
+  if (error === "session-missing") {
+    return {
+      tone: "error",
+      title: "Invite not created",
+      body: "Sign in to a tenant workspace before managing invitations."
+    };
+  }
+  if (error === "invite-failed") {
+    return {
+      tone: "error",
+      title: "Invite not created",
+      body: "We could not create that invite. Check for duplicate email addresses or permissions."
+    };
+  }
+  return null;
+}
+
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
+  const query = await searchParams;
   const { mode, sites, meters, memberships, invites, auditEvents } = await loadSettingsData();
   const activeMembers = memberships.filter((membership) => membership.is_active);
   const seuMeters = meters.filter((meter) => meter.is_seu);
+  const pageMessage = settingsMessage(query.status, query.error);
+
+  async function createInviteAction(formData: FormData) {
+    "use server";
+
+    const email = String(formData.get("email") ?? "").trim();
+    const roleValue = String(formData.get("role") ?? "viewer").trim();
+    const session = await readAppSession();
+
+    if (!email || !roleValue) {
+      redirect("/settings?error=missing-fields");
+    }
+    if (!session.userId || !session.organizationId) {
+      redirect("/settings?error=session-missing");
+    }
+
+    const inviteLocalId = `invite_${Date.now()}`;
+    try {
+      await createOrganizationInvite(
+        session.userId,
+        session.organizationId,
+        {
+          invite_id: inviteLocalId,
+          email,
+          role: roleValue as "owner" | "manager" | "viewer"
+        },
+        session.authToken
+      );
+      revalidatePath("/settings");
+      redirect("/settings?status=invite-created");
+    } catch {
+      redirect("/settings?error=invite-failed");
+    }
+  }
 
   return (
     <WorkspaceShell
@@ -17,6 +95,16 @@ export default async function SettingsPage() {
           : "Live settings data will appear here when demo workspace variables point at the backend."
       }
     >
+      {pageMessage ? (
+        <div
+          className={`authNotice ${pageMessage.tone === "success" ? "authSuccess" : "authError"}`}
+          role={pageMessage.tone === "success" ? "status" : "alert"}
+        >
+          <strong>{pageMessage.title}</strong>
+          <span>{pageMessage.body}</span>
+        </div>
+      ) : null}
+
       <section className="summaryGrid" aria-label="Settings metrics">
         <div className="summaryTile">
           <span>Team members</span>
@@ -92,6 +180,23 @@ export default async function SettingsPage() {
             <h2>Pending invites</h2>
             <span>Invite workflow</span>
           </div>
+          <form action={createInviteAction} className="inlineForm">
+            <label className="authField">
+              <span>Email</span>
+              <input name="email" type="email" placeholder="invitee@example.com" />
+            </label>
+            <label className="authField">
+              <span>Role</span>
+              <select name="role" defaultValue="viewer">
+                <option value="viewer">Viewer</option>
+                <option value="manager">Manager</option>
+                <option value="owner">Owner</option>
+              </select>
+            </label>
+            <button type="submit" className="btn btnPrimary btnSm">
+              Send invite
+            </button>
+          </form>
           <div className="rowList">
             {invites.map((invite) => (
               <div className="dataRow" key={invite.id}>

@@ -4,6 +4,33 @@ export type OrganizationSummary = {
   slug: string;
 };
 
+export type OwnerOrganizationCreatePayload = {
+  user_id: string;
+  email: string;
+  display_name: string;
+  organization_id: string;
+  organization_name: string;
+  organization_slug: string;
+};
+
+export type OwnerOrganizationResponse = {
+  user_id: string;
+  organization_id: string;
+  role: string;
+};
+
+export type DevSessionCreatePayload = {
+  user_id: string;
+  organization_id?: string;
+};
+
+export type DevSessionResponse = {
+  user_id: string;
+  organization_id: string | null;
+  role: string | null;
+  auth_token: string;
+};
+
 export type SiteSummary = {
   id: string;
   organization_id: string;
@@ -30,6 +57,12 @@ export type OrganizationInviteSummary = {
   status: string;
   accepted_by_user_id: string | null;
   accepted_at: string | null;
+};
+
+export type OrganizationInviteCreatePayload = {
+  invite_id: string;
+  email: string;
+  role: "owner" | "manager" | "viewer";
 };
 
 export type AcceptInvitePayload = {
@@ -126,11 +159,26 @@ function buildAuthHeaders(userId: string): HeadersInit {
   };
 }
 
-async function apiFetch<T>(path: string, userId: string, init?: RequestInit): Promise<T> {
+function buildRequestHeaders(userId: string, authToken?: string | null): HeadersInit {
+  if (authToken && authToken.trim()) {
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken.trim()}`
+    };
+  }
+  return buildAuthHeaders(userId);
+}
+
+async function apiFetch<T>(
+  path: string,
+  userId: string,
+  init?: RequestInit,
+  authToken?: string | null
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
-      ...buildAuthHeaders(userId),
+      ...buildRequestHeaders(userId, authToken),
       ...(init?.headers ?? {})
     }
   });
@@ -146,25 +194,91 @@ export function getMyOrganizations(userId: string): Promise<OrganizationSummary[
   return apiFetch<OrganizationSummary[]>("/me/organizations", userId);
 }
 
+export async function createOwnerOrganization(
+  payload: OwnerOrganizationCreatePayload
+): Promise<OwnerOrganizationResponse> {
+  const response = await fetch(`${API_BASE_URL}/organizations/onboard-owner`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<OwnerOrganizationResponse>;
+}
+
+export async function createDevSession(
+  payload: DevSessionCreatePayload
+): Promise<DevSessionResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/dev/session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<DevSessionResponse>;
+}
+
 export function getOrganizationSites(
   userId: string,
-  organizationId: string
+  organizationId: string,
+  authToken?: string | null
 ): Promise<SiteSummary[]> {
-  return apiFetch<SiteSummary[]>(`/organizations/${organizationId}/sites`, userId);
+  return apiFetch<SiteSummary[]>(`/organizations/${organizationId}/sites`, userId, undefined, authToken);
 }
 
 export function getOrganizationMemberships(
   userId: string,
-  organizationId: string
+  organizationId: string,
+  authToken?: string | null
 ): Promise<MembershipSummary[]> {
-  return apiFetch<MembershipSummary[]>(`/organizations/${organizationId}/memberships`, userId);
+  return apiFetch<MembershipSummary[]>(
+    `/organizations/${organizationId}/memberships`,
+    userId,
+    undefined,
+    authToken
+  );
 }
 
 export function getOrganizationInvites(
   userId: string,
-  organizationId: string
+  organizationId: string,
+  authToken?: string | null
 ): Promise<OrganizationInviteSummary[]> {
-  return apiFetch<OrganizationInviteSummary[]>(`/organizations/${organizationId}/invites`, userId);
+  return apiFetch<OrganizationInviteSummary[]>(
+    `/organizations/${organizationId}/invites`,
+    userId,
+    undefined,
+    authToken
+  );
+}
+
+export function createOrganizationInvite(
+  userId: string,
+  organizationId: string,
+  payload: OrganizationInviteCreatePayload,
+  authToken?: string | null
+): Promise<OrganizationInviteSummary> {
+  return apiFetch<OrganizationInviteSummary>(
+    `/organizations/${organizationId}/invites`,
+    userId,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    authToken
+  );
 }
 
 export async function acceptOrganizationInvite(
@@ -189,16 +303,23 @@ export async function acceptOrganizationInvite(
 export function getOrganizationMeters(
   userId: string,
   organizationId: string,
-  siteId?: string
+  siteId?: string,
+  authToken?: string | null
 ): Promise<MeterSummary[]> {
   const query = siteId ? `?site_id=${encodeURIComponent(siteId)}` : "";
-  return apiFetch<MeterSummary[]>(`/organizations/${organizationId}/meters${query}`, userId);
+  return apiFetch<MeterSummary[]>(
+    `/organizations/${organizationId}/meters${query}`,
+    userId,
+    undefined,
+    authToken
+  );
 }
 
 export function executeLocalAnalysisRun(
   userId: string,
   organizationId: string,
-  payload: LocalAnalysisRunPayload
+  payload: LocalAnalysisRunPayload,
+  authToken?: string | null
 ): Promise<LocalAnalysisRunResponse> {
   return apiFetch<LocalAnalysisRunResponse>(
     `/organizations/${organizationId}/runs/execute-local`,
@@ -206,40 +327,60 @@ export function executeLocalAnalysisRun(
     {
       method: "POST",
       body: JSON.stringify(payload)
-    }
+    },
+    authToken
   );
 }
 
 export function getOrganizationReports(
   userId: string,
   organizationId: string,
-  runId?: string
+  runId?: string,
+  authToken?: string | null
 ): Promise<ReportSummary[]> {
   const query = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
-  return apiFetch<ReportSummary[]>(`/organizations/${organizationId}/reports${query}`, userId);
+  return apiFetch<ReportSummary[]>(
+    `/organizations/${organizationId}/reports${query}`,
+    userId,
+    undefined,
+    authToken
+  );
 }
 
 export function getOrganizationUploads(
   userId: string,
   organizationId: string,
-  siteId?: string
+  siteId?: string,
+  authToken?: string | null
 ): Promise<UploadSummary[]> {
   const query = siteId ? `?site_id=${encodeURIComponent(siteId)}` : "";
-  return apiFetch<UploadSummary[]>(`/organizations/${organizationId}/uploads${query}`, userId);
+  return apiFetch<UploadSummary[]>(
+    `/organizations/${organizationId}/uploads${query}`,
+    userId,
+    undefined,
+    authToken
+  );
 }
 
 export function getOrganizationRuns(
   userId: string,
   organizationId: string,
-  siteId?: string
+  siteId?: string,
+  authToken?: string | null
 ): Promise<RunSummary[]> {
   const query = siteId ? `?site_id=${encodeURIComponent(siteId)}` : "";
-  return apiFetch<RunSummary[]>(`/organizations/${organizationId}/runs${query}`, userId);
+  return apiFetch<RunSummary[]>(`/organizations/${organizationId}/runs${query}`, userId, undefined, authToken);
 }
 
 export function getOrganizationAuditEvents(
   userId: string,
-  organizationId: string
+  organizationId: string,
+  authToken?: string | null
 ): Promise<AuditEventSummary[]> {
-  return apiFetch<AuditEventSummary[]>(`/organizations/${organizationId}/audit-events`, userId);
+  return apiFetch<AuditEventSummary[]>(
+    `/organizations/${organizationId}/audit-events`,
+    userId,
+    undefined,
+    authToken
+  );
 }

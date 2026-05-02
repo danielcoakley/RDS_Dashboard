@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 import pandas as pd
 from pydantic import BaseModel
 
 from .access_control import require_permission
-from .auth_context import AuthenticatedUser, request_authenticated_user
+from .auth_context import AuthenticatedUser, dev_token_from_claims, request_authenticated_user
 from .database import initialize_database
 from .domain import Organization, Role, User
 from .invitations import accept_organization_invite, create_organization_invite
@@ -34,6 +34,18 @@ class OwnerOrganizationResponse(BaseModel):
     user_id: str
     organization_id: str
     role: str
+
+
+class DevSessionCreate(BaseModel):
+    user_id: str
+    organization_id: str | None = None
+
+
+class DevSessionResponse(BaseModel):
+    user_id: str
+    organization_id: str | None
+    role: str | None
+    auth_token: str
 
 
 class OrganizationSummary(BaseModel):
@@ -158,6 +170,39 @@ def health_check() -> dict[str, str]:
 
 def readiness_check() -> dict[str, str]:
     return {"status": "ready", "service": "rds-saas-api"}
+
+
+def create_dev_session(
+    payload: DevSessionCreate,
+    store: SaaSStore,
+) -> DevSessionResponse:
+    user_row = store.get_user(payload.user_id)
+    if user_row is None:
+        raise ValueError(f"User {payload.user_id} was not found")
+    if not bool(user_row["is_active"]):
+        raise ValueError(f"User {payload.user_id} is inactive")
+
+    role: str | None = None
+    claims: dict[str, str] = {"sub": payload.user_id}
+    if payload.organization_id is not None:
+        memberships = store.list_memberships(
+            user_id=payload.user_id,
+            organization_id=payload.organization_id,
+        )
+        if not memberships:
+            raise ValueError(
+                f"User {payload.user_id} has no membership in organization {payload.organization_id}"
+            )
+        role = memberships[0].role.value
+        claims["org_id"] = payload.organization_id
+        claims["org_role"] = role
+
+    return DevSessionResponse(
+        user_id=payload.user_id,
+        organization_id=payload.organization_id,
+        role=role,
+        auth_token=dev_token_from_claims(claims),
+    )
 
 
 def onboard_owner_organization(
@@ -489,6 +534,20 @@ def create_app(store: SaaSStore | None = None) -> FastAPI:
     app.state.store = store or SaaSStore(initialize_database())
     app.add_api_route("/health", health_check, methods=["GET"], tags=["system"])
     app.add_api_route("/ready", readiness_check, methods=["GET"], tags=["system"])
+
+    @app.post(
+        "/auth/dev/session",
+        response_model=DevSessionResponse,
+        tags=["auth"],
+    )
+    def auth_dev_session(payload: DevSessionCreate, request: Request) -> DevSessionResponse:
+        try:
+            return create_dev_session(payload, request.app.state.store)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
 
     @app.post(
         "/organizations/onboard-owner",

@@ -3,7 +3,7 @@ import Link from "next/link";
 const pillars = [
   {
     title: "Evidence you can defend",
-    body: "Structured baselines, SEU alignment, and run history built for audits—not ad‑hoc spreadsheets."
+    body: "Structured baselines, SEU alignment, and run history built for audits, not ad hoc spreadsheets."
   },
   {
     title: "Built for portfolios",
@@ -17,7 +17,7 @@ const pillars = [
 
 const heroStats = [
   { label: "Tenant isolation", value: "By design", hint: "RBAC-ready shell" },
-  { label: "Reporting runs", value: "Traceable", hint: "Queue → success path" },
+  { label: "Reporting runs", value: "Traceable", hint: "Queue to success path" },
   { label: "ISO 50001 fit", value: "Native", hint: "EnPI-style views" }
 ];
 
@@ -33,14 +33,20 @@ export default function HomePage() {
           <a className="topNavMuted" href="#platform">
             Platform
           </a>
+          <Link className="topNavMuted" href="/login">
+            Sign in
+          </Link>
+          <Link className="topNavMuted" href="/signup">
+            Create workspace
+          </Link>
           <Link className="topNavMuted" href="/join/demo-invite">
             Accept invite
           </Link>
-          <Link className="btn btnGhost btnSm" href="/dashboard">
-            Dashboard
+          <Link className="btn btnGhost btnSm" href="/login">
+            Sign in
           </Link>
-          <Link className="btn btnPrimary btnSm" href="/dashboard">
-            Open workspace
+          <Link className="btn btnPrimary btnSm" href="/signup">
+            Start tenant
           </Link>
         </nav>
       </header>
@@ -57,19 +63,19 @@ export default function HomePage() {
           <div className="heroCopy">
             <p className="eyebrow">ISO 50001 energy intelligence</p>
             <h1 id="landing-hero-title">
-              Clarify energy performance—with proof your stakeholders trust.
+              Clarify energy performance with proof your stakeholders trust.
             </h1>
             <p className="heroLead">
               RDS brings uploads, modeled baselines, and reporting runs into one modern workspace.
               Spend less time wrangling files and more time improving performance.
             </p>
             <div className="heroActions">
-              <Link className="btn btnPrimary btnLg" href="/dashboard">
-                Explore the dashboard
+              <Link className="btn btnPrimary btnLg" href="/signup">
+                Create your workspace
               </Link>
-              <a className="btn btnGhost btnLg" href="#platform">
-                See what&apos;s included
-              </a>
+              <Link className="btn btnGhost btnLg" href="/login">
+                Sign in
+              </Link>
             </div>
             <dl className="heroTrust">
               <div>
@@ -102,8 +108,8 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <Link className="heroVisualLink" href="/dashboard">
-              Launch preview tenant →
+            <Link className="heroVisualLink" href="/join/demo-invite">
+              Accept an invite -
             </Link>
           </div>
         </div>
@@ -113,11 +119,11 @@ export default function HomePage() {
         <div className="valueSectionHeader">
           <p className="eyebrow">Why teams adopt RDS</p>
           <h2 className="valueTitle">
-            Governance, speed, and analytics—without the enterprise bloat.
+            Governance, speed, and analytics without the enterprise bloat.
           </h2>
           <p className="valueIntro">
-            The landing experience mirrors the SaaS roadmap: onboarding clarity today, uploads and audited
-            run history tomorrow—always scoped to your organization.
+            The landing experience mirrors the SaaS roadmap: onboarding clarity today, uploads and
+            audited run history tomorrow, always scoped to your organization.
           </p>
         </div>
         <div className="valueGrid">
@@ -134,10 +140,10 @@ export default function HomePage() {
       <footer className="landingFooter">
         <div>
           <strong className="footerBrand">RDS Energy Analytics</strong>
-          <p className="footerNote">ISO 50001 analytics platform • SaaS expansion</p>
+          <p className="footerNote">ISO 50001 analytics platform | SaaS expansion</p>
         </div>
-        <Link className="btn btnGhost btnSm" href="/dashboard">
-          Continue to dashboard
+        <Link className="btn btnGhost btnSm" href="/signup">
+          Start onboarding
         </Link>
       </footer>
     </main>

@@ -12,6 +12,7 @@ import {
   type SiteSummary,
   type UploadSummary
 } from "./api";
+import { readAppSession } from "./session";
 
 export type DashboardMode = "demo" | "live";
 
@@ -113,8 +114,10 @@ const demoData: DashboardData = {
 };
 
 export async function loadDashboardData(): Promise<DashboardData> {
-  const userId = process.env.DEMO_USER_ID;
-  const organizationId = process.env.DEMO_ORGANIZATION_ID;
+  const session = await readAppSession();
+  const userId = session.userId ?? process.env.DEMO_USER_ID;
+  const organizationId = session.organizationId ?? process.env.DEMO_ORGANIZATION_ID;
+  const authToken = session.authToken;
 
   if (!userId || !organizationId) {
     return demoData;
@@ -122,12 +125,12 @@ export async function loadDashboardData(): Promise<DashboardData> {
 
   try {
     const [sites, meters, uploads, runs, reports, auditEvents] = await Promise.all([
-      getOrganizationSites(userId, organizationId),
-      getOrganizationMeters(userId, organizationId),
-      getOrganizationUploads(userId, organizationId),
-      getOrganizationRuns(userId, organizationId),
-      getOrganizationReports(userId, organizationId),
-      getOrganizationAuditEvents(userId, organizationId)
+      getOrganizationSites(userId, organizationId, authToken),
+      getOrganizationMeters(userId, organizationId, undefined, authToken),
+      getOrganizationUploads(userId, organizationId, undefined, authToken),
+      getOrganizationRuns(userId, organizationId, undefined, authToken),
+      getOrganizationReports(userId, organizationId, undefined, authToken),
+      getOrganizationAuditEvents(userId, organizationId, authToken)
     ]);
     return {
       mode: "live",

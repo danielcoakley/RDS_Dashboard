@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { acceptOrganizationInvite } from "../../../lib/api";
+import { acceptOrganizationInvite, createDevSession } from "../../../lib/api";
+import { writeAppSession } from "../../../lib/session";
 
 type InvitePageProps = {
   params: Promise<{ inviteId: string }>;
-  searchParams: Promise<{ accepted?: string; error?: string }>;
+  searchParams: Promise<{ error?: string }>;
 };
 
 function messageForError(error: string | undefined): string | null {
@@ -23,7 +24,6 @@ export default async function InviteAcceptancePage({
 }: InvitePageProps) {
   const { inviteId } = await params;
   const query = await searchParams;
-  const isAccepted = query.accepted === "1";
   const errorMessage = messageForError(query.error);
 
   async function acceptInviteAction(formData: FormData) {
@@ -43,7 +43,16 @@ export default async function InviteAcceptancePage({
         email,
         display_name: displayName
       });
-      redirect(`/join/${inviteId}?accepted=1`);
+      const session = await createDevSession({
+        user_id: userId
+      });
+      await writeAppSession({
+        userId: session.user_id,
+        organizationId: session.organization_id,
+        role: session.role,
+        authToken: session.auth_token
+      });
+      redirect(`/dashboard?joined=1`);
     } catch {
       redirect(`/join/${inviteId}?error=accept-failed`);
     }
@@ -69,13 +78,6 @@ export default async function InviteAcceptancePage({
             <strong>Invite acceptance</strong>
           </div>
         </div>
-
-        {isAccepted ? (
-          <div className="authNotice authSuccess" role="status">
-            <strong>Invite accepted</strong>
-            <span>Your membership has been created. You can continue into the workspace.</span>
-          </div>
-        ) : null}
 
         {errorMessage ? (
           <div className="authNotice authError" role="alert">

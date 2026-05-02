@@ -24,6 +24,16 @@ class SaaSStore:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
 
+    def get_user(self, user_id: str) -> sqlite3.Row | None:
+        return self.conn.execute(
+            """
+            SELECT id, email, display_name, is_active
+            FROM users
+            WHERE id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+
     def create_user(self, user: User) -> None:
         self.conn.execute(
             """

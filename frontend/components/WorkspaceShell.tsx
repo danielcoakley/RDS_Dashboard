@@ -59,7 +59,9 @@ export function WorkspaceShell({
             <p className="eyebrow">{eyebrow}</p>
             <h1>{title}</h1>
           </div>
-          <div className="userMenu">Owner</div>
+          <Link href="/logout" className="userMenu">
+            Sign out
+          </Link>
         </header>
 
         <div className="modeBanner" role="status" aria-live="polite">

@@ -11,6 +11,7 @@ import {
   type SiteSummary
 } from "./api";
 import type { DashboardMode } from "./dashboard-data";
+import { readAppSession } from "./session";
 
 export type SettingsData = {
   mode: DashboardMode;
@@ -99,8 +100,10 @@ const demoSettingsData: SettingsData = {
 };
 
 export async function loadSettingsData(): Promise<SettingsData> {
-  const userId = process.env.DEMO_USER_ID;
-  const organizationId = process.env.DEMO_ORGANIZATION_ID;
+  const session = await readAppSession();
+  const userId = session.userId ?? process.env.DEMO_USER_ID;
+  const organizationId = session.organizationId ?? process.env.DEMO_ORGANIZATION_ID;
+  const authToken = session.authToken;
 
   if (!userId || !organizationId) {
     return demoSettingsData;
@@ -108,11 +111,11 @@ export async function loadSettingsData(): Promise<SettingsData> {
 
   try {
     const [sites, meters, memberships, invites, auditEvents] = await Promise.all([
-      getOrganizationSites(userId, organizationId),
-      getOrganizationMeters(userId, organizationId),
-      getOrganizationMemberships(userId, organizationId),
-      getOrganizationInvites(userId, organizationId),
-      getOrganizationAuditEvents(userId, organizationId)
+      getOrganizationSites(userId, organizationId, authToken),
+      getOrganizationMeters(userId, organizationId, undefined, authToken),
+      getOrganizationMemberships(userId, organizationId, authToken),
+      getOrganizationInvites(userId, organizationId, authToken),
+      getOrganizationAuditEvents(userId, organizationId, authToken)
     ]);
 
     return {

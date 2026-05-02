@@ -21,6 +21,15 @@ For local session-style testing, you can also set:
 
 `DEMO_AUTH_TOKEN` should be a bearer token payload created from Clerk-style claims using the local development token seam in `backend/auth_context.py`. If no auth token is set, the frontend falls back to the temporary `X-User-Id` header.
 
+## Local Auth and Onboarding
+
+- `/signup` creates an owner user, creates an organization, and opens a local dev session.
+- `/login` creates a local dev session for an existing user and optional organization membership.
+- `/join/[inviteId]` accepts an invite and then opens a local dev session.
+- `/logout` clears the local session cookies.
+
+The frontend stores the local session in HTTP-only cookies and uses that session when loading tenant-scoped app pages.
+
 ## Dependency Audit
 
 `npm audit --audit-level=moderate` currently reports a transitive PostCSS advisory through Next.js. NPM suggests `npm audit fix --force`, but that would downgrade Next to an old breaking version, so do not apply it blindly. Recheck after Next publishes a safe patched release.

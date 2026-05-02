@@ -19,6 +19,7 @@ Use **Clerk** as the preferred MVP authentication and organization provider for 
 - Map Clerk organization id to `organizations.id`.
 - Map Clerk organization role/permission claims to platform RBAC roles.
 - Initial claim-to-user mapping exists in `backend/auth_context.py`; a local bearer-token development seam now accepts Clerk-shaped claims without live secrets, while full JWT verification is intentionally deferred until Clerk environment values exist.
+- Local onboarding and auth entry pages now use this seam to create HTTP-only dev sessions for signup, login, and invite acceptance without introducing live Clerk credentials into the repo.
 
 ## Guardrails
 

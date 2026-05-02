@@ -2,11 +2,13 @@ from fastapi.routing import APIRoute
 
 from backend.api import (
     API_TITLE,
+    DevSessionCreate,
     LocalAnalysisRunCreate,
     OwnerOrganizationCreate,
     OrganizationInviteAccept,
     OrganizationInviteCreate,
     accept_invite,
+    create_dev_session,
     create_app,
     create_invite,
     execute_local_analysis_run,
@@ -42,6 +44,7 @@ def test_api_app_registers_system_routes():
     assert {
         "/health",
         "/ready",
+        "/auth/dev/session",
         "/organizations/onboard-owner",
         "/organizations/{organization_id}/sites",
         "/organizations/{organization_id}/memberships",
@@ -60,6 +63,42 @@ def test_api_app_registers_system_routes():
 def test_system_endpoint_handlers_are_side_effect_free():
     assert health_check() == {"status": "ok"}
     assert readiness_check() == {"status": "ready", "service": "rds-saas-api"}
+
+
+def test_create_dev_session_returns_bearer_token_for_known_user_and_membership():
+    store = SaaSStore(initialize_database())
+    onboard_owner_organization(
+        OwnerOrganizationCreate(
+            user_id="user_1",
+            email="owner@example.com",
+            display_name="Owner",
+            organization_id="org_1",
+            organization_name="Example Energy",
+            organization_slug="example-energy",
+        ),
+        store,
+    )
+
+    response = create_dev_session(
+        DevSessionCreate(user_id="user_1", organization_id="org_1"),
+        store,
+    )
+
+    assert response.user_id == "user_1"
+    assert response.organization_id == "org_1"
+    assert response.role == "owner"
+    assert response.auth_token.startswith("dev:")
+
+
+def test_create_dev_session_rejects_unknown_membership():
+    store = SaaSStore(initialize_database())
+    store.create_user(User(id="user_1", email="owner@example.com", display_name="Owner"))
+
+    try:
+        create_dev_session(DevSessionCreate(user_id="user_1", organization_id="org_1"), store)
+        assert False, "Expected missing membership to fail"
+    except ValueError as exc:
+        assert "no membership" in str(exc)
 
 
 def test_onboard_owner_organization_endpoint_logic_creates_owner_membership():
