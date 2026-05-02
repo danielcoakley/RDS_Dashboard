@@ -146,6 +146,114 @@ h3 {
   background: rgba(248, 250, 255, 0.75);
 }
 
+.authShell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(900px circle at 10% 0%, rgba(18, 194, 224, 0.14) 0%, transparent 54%),
+    radial-gradient(700px circle at 100% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 48%),
+    var(--bg);
+}
+
+.authCard {
+  width: min(100%, 640px);
+  padding: clamp(24px, 3vw, 34px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-lg);
+}
+
+.authLead {
+  margin-bottom: 22px;
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.68;
+}
+
+.authInfoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.authInfoTile,
+.authNotice {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(248, 250, 255, 0.9);
+}
+
+.authInfoTile {
+  padding: 14px 16px;
+}
+
+.authInfoTile span,
+.authField span,
+.authNotice span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.authInfoTile strong,
+.authNotice strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-soft);
+}
+
+.authNotice {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+
+.authSuccess {
+  border-color: rgba(15, 156, 174, 0.2);
+  background: rgba(15, 156, 174, 0.08);
+}
+
+.authError {
+  border-color: rgba(249, 115, 22, 0.22);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.authForm {
+  display: grid;
+  gap: 14px;
+}
+
+.authField {
+  display: grid;
+  gap: 8px;
+}
+
+.authField input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+}
+
+.authField input:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+.authActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
 /* Landing */
 
 .landing {

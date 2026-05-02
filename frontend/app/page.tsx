@@ -33,6 +33,9 @@ export default function HomePage() {
           <a className="topNavMuted" href="#platform">
             Platform
           </a>
+          <Link className="topNavMuted" href="/join/demo-invite">
+            Accept invite
+          </Link>
           <Link className="btn btnGhost btnSm" href="/dashboard">
             Dashboard
           </Link>

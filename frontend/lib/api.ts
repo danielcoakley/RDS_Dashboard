@@ -32,6 +32,12 @@ export type OrganizationInviteSummary = {
   accepted_at: string | null;
 };
 
+export type AcceptInvitePayload = {
+  user_id: string;
+  email: string;
+  display_name: string;
+};
+
 export type MeterSummary = {
   id: string;
   organization_id: string;
@@ -159,6 +165,25 @@ export function getOrganizationInvites(
   organizationId: string
 ): Promise<OrganizationInviteSummary[]> {
   return apiFetch<OrganizationInviteSummary[]>(`/organizations/${organizationId}/invites`, userId);
+}
+
+export async function acceptOrganizationInvite(
+  inviteId: string,
+  payload: AcceptInvitePayload
+): Promise<OrganizationInviteSummary> {
+  const response = await fetch(`${API_BASE_URL}/invites/${inviteId}/accept`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<OrganizationInviteSummary>;
 }
 
 export function getOrganizationMeters(
