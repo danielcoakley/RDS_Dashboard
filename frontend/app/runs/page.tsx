@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { createOrganizationRun } from "../../lib/api";
@@ -47,6 +48,7 @@ function runsMessage(
 export default async function RunsPage({ searchParams }: RunsPageProps) {
   const query = await searchParams;
   const { mode, runs, reports, uploads, sites, auditEvents } = await loadDashboardData();
+  const canRequestRun = mode === "live" && sites.length > 0 && uploads.length > 0;
   const successfulRuns = runs.filter((run) => run.status === "succeeded");
   const failedRuns = runs.filter((run) => run.status === "failed");
   const runAuditEvents = auditEvents.filter((event) => event.resource_type === "run");
@@ -107,6 +109,15 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
           <span>{pageMessage.body}</span>
         </div>
       ) : null}
+      {!canRequestRun ? (
+        <div className="authNotice authError" role="alert">
+          <strong>Run requests need an active tenant workspace</strong>
+          <span>
+            Select an organization before requesting runs. If you are not signed in, complete{" "}
+            <Link href="/login">sign in</Link> first.
+          </span>
+        </div>
+      ) : null}
 
       <section className="summaryGrid" aria-label="Run metrics">
         <div className="summaryTile">
@@ -140,7 +151,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
           <form action={requestRunAction} className="inlineForm">
             <label className="authField">
               <span>Site</span>
-              <select name="site_id" defaultValue={sites[0]?.id ?? ""}>
+              <select name="site_id" defaultValue={sites[0]?.id ?? ""} disabled={!canRequestRun}>
                 {sites.map((site) => (
                   <option key={site.id} value={site.id}>
                     {site.name}
@@ -150,7 +161,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
             </label>
             <label className="authField">
               <span>Upload</span>
-              <select name="upload_id" defaultValue={uploads[0]?.id ?? ""}>
+              <select name="upload_id" defaultValue={uploads[0]?.id ?? ""} disabled={!canRequestRun}>
                 {uploads.map((upload) => (
                   <option key={upload.id} value={upload.id}>
                     {upload.id}
@@ -158,7 +169,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
                 ))}
               </select>
             </label>
-            <button type="submit" className="btn btnPrimary btnSm">
+            <button type="submit" className="btn btnPrimary btnSm" disabled={!canRequestRun}>
               Request run
             </button>
           </form>
@@ -167,11 +178,18 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
               <div className="dataRow" key={run.id}>
                 <div>
                   <strong>{run.id}</strong>
-                  <span>{run.site_id}</span>
+                  <span>
+                    {run.site_id} · {reports.filter((report) => report.run_id === run.id).length} reports
+                  </span>
                 </div>
                 <div>
                   <strong>{run.status}</strong>
-                  <span>{run.completed_at ?? run.error_message ?? "Awaiting completion"}</span>
+                  <span>
+                    {run.completed_at ??
+                      reports.find((report) => report.run_id === run.id)?.id ??
+                      run.error_message ??
+                      "Awaiting completion"}
+                  </span>
                 </div>
               </div>
             ))}
