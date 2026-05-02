@@ -210,7 +210,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
                 <div>
                   <strong>{run.id}</strong>
                   <span>
-                    {run.site_id} · {reports.filter((report) => report.run_id === run.id).length} reports
+                    {run.site_id} - {reports.filter((report) => report.run_id === run.id).length} reports
                   </span>
                 </div>
                 <div>
@@ -236,12 +236,16 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
             {reports.map((report) => (
               <div className="dataRow" key={report.id}>
                 <div>
-                  <strong>{report.report_type}</strong>
+                  <strong>
+                    <Link href={`/reports/${report.id}`}>{report.report_type}</Link>
+                  </strong>
                   <span>{report.run_id}</span>
                 </div>
                 <div>
                   <strong>{report.is_published ? "Published" : "Draft"}</strong>
-                  <span>{report.id}</span>
+                  <span>
+                    <Link href={`/reports/${report.id}`}>{report.id}</Link>
+                  </span>
                 </div>
               </div>
             ))}

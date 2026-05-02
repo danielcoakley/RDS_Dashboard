@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { loadDashboardData } from "../../lib/dashboard-data";
 
@@ -49,12 +50,16 @@ export default async function ReportsPage() {
             {reports.map((report) => (
               <div className="dataRow" key={report.id}>
                 <div>
-                  <strong>{report.report_type}</strong>
+                  <strong>
+                    <Link href={`/reports/${report.id}`}>{report.report_type}</Link>
+                  </strong>
                   <span>{report.storage_key}</span>
                 </div>
                 <div>
                   <strong>{report.is_published ? "Published" : "Draft"}</strong>
-                  <span>{report.run_id}</span>
+                  <span>
+                    {report.run_id} - <Link href={`/reports/${report.id}`}>View details</Link>
+                  </span>
                 </div>
               </div>
             ))}
@@ -70,12 +75,16 @@ export default async function ReportsPage() {
             {publishedReports.map((report) => (
               <div className="dataRow" key={`${report.id}-published`}>
                 <div>
-                  <strong>{report.id}</strong>
+                  <strong>
+                    <Link href={`/reports/${report.id}`}>{report.id}</Link>
+                  </strong>
                   <span>{report.organization_id}</span>
                 </div>
                 <div>
                   <strong>{report.report_type}</strong>
-                  <span>{report.run_id}</span>
+                  <span>
+                    {report.run_id} - <Link href={`/reports/${report.id}`}>Open</Link>
+                  </span>
                 </div>
               </div>
             ))}
