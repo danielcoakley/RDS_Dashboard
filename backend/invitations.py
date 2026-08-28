@@ -2,15 +2,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from secrets import token_urlsafe
 
 from .access_control import require_permission
 from .domain import AuditAction, AuditEvent, InviteStatus, Membership, OrganizationInvite, Role, User
 from .rbac import Action
 from .store import SaaSStore
+from .subscriptions import require_member_capacity
 
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def generate_organization_invite_id() -> str:
+    return f"invite_{token_urlsafe(24)}"
+
+
+def _invite_audit_metadata(role: Role, status: InviteStatus) -> dict[str, str]:
+    return {
+        "role": role.value,
+        "status": status.value,
+        "invite_email_configured": "true",
+    }
 
 
 @dataclass(frozen=True)
@@ -25,7 +39,7 @@ def create_organization_invite(
     *,
     actor_user_id: str,
     organization_id: str,
-    invite_id: str,
+    invite_id: str | None = None,
     email: str,
     role: Role,
 ) -> OrganizationInvite:
@@ -35,21 +49,23 @@ def create_organization_invite(
         organization_id=organization_id,
         action=Action.MANAGE_MEMBERS,
     )
+    require_member_capacity(store, organization_id, reserve_pending_invites=True)
+    active_invite_id = invite_id or generate_organization_invite_id()
     invite = OrganizationInvite(
-        id=invite_id,
+        id=active_invite_id,
         organization_id=organization_id,
         email=email,
         role=role,
         invited_by_user_id=actor_user_id,
     )
     audit_event = AuditEvent(
-        id=f"audit_{invite_id}",
+        id=f"audit_{active_invite_id}",
         organization_id=organization_id,
         actor_user_id=actor_user_id,
         action=AuditAction.INVITE_CREATED,
         resource_type="organization_invite",
         resource_id=invite.id,
-        metadata={"email": invite.email, "role": invite.role.value},
+        metadata=_invite_audit_metadata(invite.role, invite.status),
     )
     with store.conn:
         store.create_organization_invite(invite)
@@ -70,6 +86,11 @@ def accept_organization_invite(
         raise ValueError(f"Invite {invite_id} is not pending")
     if invite_row["email"].strip().lower() != user.email.strip().lower():
         raise ValueError("Invite email does not match accepting user email")
+    require_member_capacity(
+        store,
+        invite_row["organization_id"],
+        reserve_pending_invites=False,
+    )
 
     invite = OrganizationInvite(
         id=invite_row["id"],
@@ -97,7 +118,7 @@ def accept_organization_invite(
         action=AuditAction.INVITE_ACCEPTED,
         resource_type="organization_invite",
         resource_id=invite.id,
-        metadata={"email": user.email, "role": invite.role.value},
+        metadata=_invite_audit_metadata(invite.role, InviteStatus.ACCEPTED),
     )
     with store.conn:
         existing_user = store.conn.execute(
@@ -165,7 +186,7 @@ def revoke_organization_invite(
         action=AuditAction.INVITE_REVOKED,
         resource_type="organization_invite",
         resource_id=invite_id,
-        metadata={"email": revoked_invite.email, "role": revoked_invite.role.value},
+        metadata=_invite_audit_metadata(revoked_invite.role, revoked_invite.status),
     )
     with store.conn:
         store.revoke_organization_invite(invite_id)

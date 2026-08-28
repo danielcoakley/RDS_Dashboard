@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from .domain import Membership, Organization, Role, User
 from .store import SaaSStore
+from .subscriptions import DEFAULT_TRIAL_PLAN_ID, build_subscription_for_plan
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,10 @@ def create_owner_organization(
         store.create_user(user)
         store.create_organization(organization)
         store.add_membership(membership)
+        if store.get_subscription_plan(DEFAULT_TRIAL_PLAN_ID) is not None:
+            store.upsert_organization_subscription(
+                build_subscription_for_plan(organization.id, DEFAULT_TRIAL_PLAN_ID)
+            )
 
     return OrganizationOnboardingResult(
         user=user,

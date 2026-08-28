@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createDevSession, getMyOrganizations } from "../../lib/api";
+import { ClerkOrganizationSelector } from "../../components/ClerkControls";
+import { createDevSession, getMyOrganizations, syncClerkSession } from "../../lib/api";
+import { isClerkFrontendEnabled } from "../../lib/auth-config";
 import { readAppSession, writeAppSession } from "../../lib/session";
 
 type OrganizationsPageProps = {
@@ -14,19 +16,77 @@ function organizationsError(error: string | undefined): string | null {
   if (error === "session-missing") {
     return "Sign in before selecting an organization.";
   }
+  if (error === "organization-missing") {
+    return "Choose an active Clerk organization before opening the workspace.";
+  }
+  if (error === "sync-failed") {
+    return "We could not activate that Clerk organization in the workspace.";
+  }
   return "We could not switch to that tenant. Try selecting the organization again.";
 }
 
 export default async function OrganizationsPage({ searchParams }: OrganizationsPageProps) {
   const query = await searchParams;
   const session = await readAppSession();
+  const useClerk = isClerkFrontendEnabled();
+  const errorMessage = organizationsError(query.error);
 
   if (!session.userId) {
     redirect("/login");
   }
 
+  if (useClerk && session.provider === "clerk") {
+    async function activateClerkOrganizationAction() {
+      "use server";
+
+      const currentSession = await readAppSession();
+      if (!currentSession.userId || currentSession.provider !== "clerk" || !currentSession.authToken) {
+        redirect("/organizations?error=session-missing");
+      }
+      if (!currentSession.organizationId) {
+        redirect("/organizations?error=organization-missing");
+      }
+
+      try {
+        await syncClerkSession(currentSession.userId, currentSession.authToken);
+      } catch {
+        redirect("/organizations?error=sync-failed");
+      }
+
+      redirect("/dashboard");
+    }
+
+    return (
+      <main className="authShell">
+        <section className="authCard authCardCentered">
+          <p className="eyebrow">Tenant switcher</p>
+          <h1>Select your organization</h1>
+          <p className="authLead">
+            Choose the active Clerk organization before opening tenant-scoped analytics.
+          </p>
+
+          <ClerkOrganizationSelector enabled={useClerk} />
+
+          {errorMessage ? (
+            <div className="authNotice authError" role="alert">
+              <strong>Organization not active</strong>
+              <span>{errorMessage}</span>
+            </div>
+          ) : null}
+
+          <div className="authActions">
+            <form action={activateClerkOrganizationAction}>
+              <button type="submit" className="btn btnPrimary btnLg">
+                Open workspace
+              </button>
+            </form>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   const organizations = await getMyOrganizations(session.userId, session.authToken);
-  const errorMessage = organizationsError(query.error);
 
   async function selectOrganizationAction(formData: FormData) {
     "use server";
@@ -38,8 +98,9 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
       redirect("/organizations?error=session-missing");
     }
 
+    let nextSession;
     try {
-      const nextSession = await createDevSession({
+      nextSession = await createDevSession({
         user_id: currentSession.userId,
         organization_id: organizationId
       });
@@ -49,10 +110,11 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
         role: nextSession.role,
         authToken: nextSession.auth_token
       });
-      redirect("/dashboard");
     } catch {
       redirect("/organizations?error=switch-failed");
     }
+
+    redirect("/dashboard");
   }
 
   return (

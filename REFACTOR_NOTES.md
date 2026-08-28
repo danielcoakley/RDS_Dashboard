@@ -5,6 +5,7 @@
 - Processing logic depended on fixed local file `seu_mapping.csv`.
 - App expected one rigid input shape for energy data (`Period`, `Metered Sector`, `Utility`, date columns).
 - Analysis defaults included hardcoded years in helper function signatures.
+- Legacy preprocessing now avoids implicit repo-root SEU mapping reads; SaaS callers must pass tenant-scoped SEU mapping data explicitly.
 
 ## Proposed replacements
 - Added YAML client config layer under `config/clients/`.
@@ -18,11 +19,12 @@
 - Streamlit app now reads energy upload twice (legacy + standardised path), which is safe but could be optimized.
 
 ## Functions/modules created
-- `src/config_loader.py`: `load_client_config`, `validate_client_config`
-- `src/data_standardisation.py`: `load_uploaded_data`, `standardise_meter_data`
-- `src/data_quality.py`: `clean_meter_data`, `detect_data_gaps`, `detect_outliers`
-- `src/reporting.py`: `calculate_consumption_summary`, `generate_iso_summary`
-- `src/enpi_model.py`: `build_baseline_model`, `calculate_enpi`
+- `analytics/config_loader.py`: `load_client_config`, `validate_client_config`
+- `analytics/data_standardisation.py`: `load_uploaded_data`, `standardise_meter_data`
+- `analytics/data_quality.py`: `clean_meter_data`, `detect_data_gaps`, `detect_outliers`
+- `analytics/reporting.py`: `calculate_consumption_summary`, `generate_iso_summary`
+- `analytics/enpi_model.py`: `build_baseline_model`, `calculate_enpi`
+- `src/*`: compatibility shims for the legacy Streamlit entry point while SaaS code imports `analytics/*`.
 - Added tests in `tests/` for config loading/validation and standardisation behaviors.
 
 ## SaaS platform planning update (2026-05-01)

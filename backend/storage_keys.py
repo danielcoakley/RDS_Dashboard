@@ -51,3 +51,22 @@ def report_storage_key(
             safe_key_part(filename),
         )
     )
+
+
+def evidence_package_storage_key(
+    organization_id: str,
+    report_id: str,
+    package_id: str,
+    filename: str,
+) -> str:
+    return str(
+        PurePosixPath(
+            "tenants",
+            safe_key_part(organization_id),
+            "reports",
+            safe_key_part(report_id),
+            "evidence-packages",
+            safe_key_part(package_id),
+            safe_key_part(filename),
+        )
+    )

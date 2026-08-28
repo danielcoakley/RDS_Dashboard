@@ -8,32 +8,40 @@ from .domain import Membership, Role
 
 class Action(str, Enum):
     READ = "read"
+    MANAGE_ASSETS = "manage_assets"
     MANAGE_UPLOADS = "manage_uploads"
     MANAGE_RUNS = "manage_runs"
     MANAGE_REPORTS = "manage_reports"
+    COMMENT_REPORTS = "comment_reports"
     MANAGE_MEMBERS = "manage_members"
     MANAGE_ORGANIZATION = "manage_organization"
+    MANAGE_BILLING = "manage_billing"
     VIEW_AUDIT = "view_audit"
 
 
 _ROLE_ACTIONS: dict[Role, set[Action]] = {
     Role.OWNER: {
         Action.READ,
+        Action.MANAGE_ASSETS,
         Action.MANAGE_UPLOADS,
         Action.MANAGE_RUNS,
         Action.MANAGE_REPORTS,
+        Action.COMMENT_REPORTS,
         Action.MANAGE_MEMBERS,
         Action.MANAGE_ORGANIZATION,
+        Action.MANAGE_BILLING,
         Action.VIEW_AUDIT,
     },
     Role.MANAGER: {
         Action.READ,
+        Action.MANAGE_ASSETS,
         Action.MANAGE_UPLOADS,
         Action.MANAGE_RUNS,
         Action.MANAGE_REPORTS,
+        Action.COMMENT_REPORTS,
         Action.VIEW_AUDIT,
     },
-    Role.VIEWER: {Action.READ},
+    Role.VIEWER: {Action.READ, Action.COMMENT_REPORTS},
 }
 
 

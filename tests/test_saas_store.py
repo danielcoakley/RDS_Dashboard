@@ -66,6 +66,34 @@ def test_store_lists_sites_and_meters_by_tenant_scope():
     assert [meter.id for meter in store.list_meters("org_2")] == ["meter_2"]
 
 
+def test_store_persists_site_location():
+    store = SaaSStore(initialize_database())
+    store.create_organization(Organization(id="org_1", name="Example Energy", slug="example-energy"))
+    store.create_site(
+        Site(
+            id="site_1",
+            organization_id="org_1",
+            name="Main Site",
+            timezone="Europe/London",
+            location_label="London, UK",
+            latitude=51.5074,
+            longitude=-0.1278,
+        )
+    )
+    store.create_site(Site(id="site_2", organization_id="org_1", name="No Location", timezone="Europe/London"))
+
+    located = store.get_site("site_1")
+    unlocated = store.get_site("site_2")
+
+    assert located is not None
+    assert located.has_location is True
+    assert located.location_label == "London, UK"
+    assert located.latitude == 51.5074
+    assert unlocated is not None
+    assert unlocated.has_location is False
+    assert store.get_site("missing") is None
+
+
 def test_store_memberships_can_feed_access_guards():
     store = SaaSStore(initialize_database())
     store.create_user(User(id="user_1", email="owner@example.com", display_name="Owner"))

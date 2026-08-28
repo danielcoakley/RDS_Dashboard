@@ -2,6 +2,17 @@ import Link from "next/link";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { loadDashboardData } from "../../lib/dashboard-data";
 
+function formatRetentionDate(value: string | null): string {
+  if (!value) {
+    return "No expiry";
+  }
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
 export default async function ReportsPage() {
   const { mode, reports, runs } = await loadDashboardData();
   const publishedReports = reports.filter((report) => report.is_published);
@@ -11,14 +22,27 @@ export default async function ReportsPage() {
     <WorkspaceShell
       currentPath="/reports"
       title="Reports"
-      modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
+      modeLabel={
+        mode === "live" ? "Live workspace" : mode === "error" ? "Workspace data unavailable" : "Sample workspace"
+      }
       modeDescription={
         mode === "live"
           ? "Report metadata is loading from the backend."
-          : "This page is showing sample report records until a live organization is selected."
+          : mode === "error"
+            ? "We could not load your organization's live data from the backend. Reload the page to try again."
+            : "This page is showing sample report records until a live organization is selected."
       }
+      modeTone={mode === "error" ? "error" : "info"}
     >
-      {!hasReports ? (
+      {mode === "error" ? (
+        <div className="authNotice authError" role="alert">
+          <strong>Workspace data unavailable</strong>
+          <span>
+            Your real report library could not be loaded, so no sample or fabricated records are
+            shown below. Reload the page or try again shortly.
+          </span>
+        </div>
+      ) : !hasReports ? (
         <div className="authNotice authError" role="alert">
           <strong>No reports yet</strong>
           <span>
@@ -76,13 +100,14 @@ export default async function ReportsPage() {
                     <strong>
                       <Link href={`/reports/${report.id}`}>{report.report_type}</Link>
                     </strong>
-                    <span>{report.storage_key}</span>
+                    <span>Report {report.id}</span>
                   </div>
                   <div>
                     <strong>{report.is_published ? "Published" : "Draft"}</strong>
                     <span>
                       {report.run_id} - <Link href={`/reports/${report.id}`}>View details</Link>
                     </span>
+                    <span>Expires {formatRetentionDate(report.expires_at)}</span>
                   </div>
                 </div>
               ))
@@ -117,6 +142,7 @@ export default async function ReportsPage() {
                     <span>
                       {report.run_id} - <Link href={`/reports/${report.id}`}>Open</Link>
                     </span>
+                    <span>Expires {formatRetentionDate(report.expires_at)}</span>
                   </div>
                 </div>
               ))

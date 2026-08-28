@@ -1,1 +1,3 @@
-# Shared utility helpers for the refactored platform.
+"""Compatibility imports for legacy Streamlit code."""
+
+__all__: list[str] = []

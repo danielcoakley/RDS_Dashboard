@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
-import { createOrganizationUpload } from "../../lib/api";
+import { createOrganizationUploadContent } from "../../lib/api";
 import { loadDashboardData } from "../../lib/dashboard-data";
 import { readAppSession } from "../../lib/session";
 
@@ -11,6 +11,14 @@ const sourceFileTypes = [
   { value: "cdd", label: "CDD Data" },
   { value: "seu_mapping", label: "SEU Mapping" }
 ];
+
+function sourceFileLabel(category: string): string {
+  return sourceFileTypes.find((fileType) => fileType.value === category)?.label ?? category;
+}
+
+function shortChecksum(value: string): string {
+  return value.length > 12 ? `${value.slice(0, 12)}...` : value;
+}
 
 type UploadsPageProps = {
   searchParams: Promise<{ status?: string; error?: string }>;
@@ -23,29 +31,29 @@ function uploadsMessage(
   if (status === "created") {
     return {
       tone: "success",
-      title: "Source file recorded",
-      body: "The file is now included in the baseline workflow checklist."
+      title: "Source file uploaded",
+      body: "The file is stored in the tenant workspace and included in the baseline workflow checklist."
     };
   }
   if (error === "missing-fields") {
     return {
       tone: "error",
-      title: "Source file not recorded",
-      body: "Choose a site, source file type, filename, and checksum."
+      title: "Source file not uploaded",
+      body: "Choose a site, source file type, and CSV file."
     };
   }
   if (error === "session-missing") {
     return {
       tone: "error",
-      title: "Source file not recorded",
+      title: "Source file not uploaded",
       body: "Sign in to an organization workspace before adding source files."
     };
   }
   if (error === "create-failed") {
     return {
       tone: "error",
-      title: "Source file not recorded",
-      body: "We could not create that upload record. Check fields and try again."
+      title: "Source file not uploaded",
+      body: "We could not store that file. Check that it is a CSV matching the selected source type."
     };
   }
   return null;
@@ -53,9 +61,8 @@ function uploadsMessage(
 
 export default async function UploadsPage({ searchParams }: UploadsPageProps) {
   const query = await searchParams;
-  const { mode, sites, uploads } = await loadDashboardData();
+  const { mode, sites, uploads, uploadReadiness } = await loadDashboardData();
   const storedUploads = uploads.filter((upload) => upload.status === "stored");
-  const uploadCategories = new Set(uploads.map((upload) => upload.category)).size;
   const pageMessage = uploadsMessage(query.status, query.error);
 
   async function createUploadAction(formData: FormData) {
@@ -63,11 +70,10 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
 
     const siteId = String(formData.get("site_id") ?? "").trim();
     const category = String(formData.get("category") ?? "").trim();
-    const filename = String(formData.get("filename") ?? "").trim();
-    const checksum = String(formData.get("checksum") ?? "").trim();
+    const sourceFile = formData.get("source_file");
     const session = await readAppSession();
 
-    if (!siteId || !category || !filename || !checksum) {
+    if (!siteId || !category || !(sourceFile instanceof File) || sourceFile.size === 0) {
       redirect("/uploads?error=missing-fields");
     }
     if (!session.userId || !session.organizationId) {
@@ -76,24 +82,25 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
 
     const uploadId = `upload_${Date.now()}`;
     try {
-      await createOrganizationUpload(
+      const contentBase64 = Buffer.from(await sourceFile.arrayBuffer()).toString("base64");
+      await createOrganizationUploadContent(
         session.userId,
         session.organizationId,
         {
           upload_id: uploadId,
           site_id: siteId,
           category,
-          filename,
-          checksum
+          filename: sourceFile.name,
+          content_base64: contentBase64
         },
         session.authToken
       );
       revalidatePath("/uploads");
       revalidatePath("/dashboard");
-      redirect("/uploads?status=created");
     } catch {
       redirect("/uploads?error=create-failed");
     }
+    redirect("/uploads?status=created");
   }
 
   return (
@@ -101,13 +108,28 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
       currentPath="/uploads"
       title="Source files"
       eyebrow="Workflow"
-      modeLabel={mode === "live" ? "Live workspace" : "Sample workspace"}
+      modeLabel={
+        mode === "live" ? "Live workspace" : mode === "error" ? "Workspace data unavailable" : "Sample workspace"
+      }
       modeDescription={
         mode === "live"
-          ? "Record the four CSV inputs used by the original baseline dashboard workflow."
-          : "Sample source files are shown until a live organization is selected."
+          ? "Upload the four CSV inputs used by the original baseline dashboard workflow."
+          : mode === "error"
+            ? "We could not load your organization's live data from the backend. Reload the page to try again."
+            : "Sample source files are shown until a live organization is selected."
       }
+      modeTone={mode === "error" ? "error" : "info"}
     >
+      {mode === "error" ? (
+        <div className="authNotice authError" role="alert">
+          <strong>Workspace data unavailable</strong>
+          <span>
+            Your real source files and site readiness could not be loaded, so no sample or
+            fabricated figures are shown below. Reload the page or try again shortly.
+          </span>
+        </div>
+      ) : null}
+
       {pageMessage ? (
         <div
           className={`authNotice ${pageMessage.tone === "success" ? "authSuccess" : "authError"}`}
@@ -128,8 +150,10 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
           <strong>{storedUploads.length}</strong>
         </div>
         <div className="summaryTile">
-          <span>Categories</span>
-          <strong>{uploadCategories}</strong>
+          <span>Ready sites</span>
+          <strong>
+            {uploadReadiness.ready_site_count}/{uploadReadiness.site_count}
+          </strong>
         </div>
         <div className="summaryTile">
           <span>Sites covered</span>
@@ -169,26 +193,21 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
               </select>
             </label>
             <label className="authField">
-              <span>Filename</span>
-              <input name="filename" type="text" placeholder="energy.csv" />
-            </label>
-            <label className="authField">
-              <span>Checksum</span>
-              <input name="checksum" type="text" placeholder="abc123" />
+              <span>CSV file</span>
+              <input name="source_file" type="file" accept=".csv,text/csv" />
             </label>
             <button type="submit" className="btn btnPrimary btnSm">
-              Add source file
+              Upload source file
             </button>
           </form>
           <div className="rowList">
             {uploads.map((upload) => (
               <div className="dataRow" key={upload.id}>
                 <div>
-                  <strong>
-                    {sourceFileTypes.find((fileType) => fileType.value === upload.category)?.label ??
-                      upload.category}
-                  </strong>
-                  <span>{upload.storage_key}</span>
+                  <strong>{sourceFileLabel(upload.category)}</strong>
+                  <span>
+                    {upload.id} - checksum {shortChecksum(upload.checksum)}
+                  </span>
                 </div>
                 <div>
                   <strong>{upload.status}</strong>
@@ -201,25 +220,43 @@ export default async function UploadsPage({ searchParams }: UploadsPageProps) {
 
         <div className="listPanel">
           <div className="sectionHeader">
-            <h2>Site coverage</h2>
-            <span>Files by site</span>
+            <h2>Site readiness</h2>
+            <span>Source contract by site</span>
           </div>
           <div className="rowList">
-            {sites.map((site) => {
-              const siteUploads = uploads.filter((upload) => upload.site_id === site.id);
-              return (
-                <div className="dataRow" key={site.id}>
+            {uploadReadiness.sites.length === 0 ? (
+              <div className="dataRow">
+                <div>
+                  <strong>No sites configured</strong>
+                  <span>Add a site in Settings before uploading source files.</span>
+                </div>
+              </div>
+            ) : (
+              uploadReadiness.sites.map((site) => (
+                <div className="dataRow readinessRow" key={site.site_id}>
                   <div>
-                    <strong>{site.name}</strong>
-                    <span>{site.timezone}</span>
+                    <strong>{site.site_name}</strong>
+                    <span>
+                      {site.ready_count}/{site.required_count} required source files ready
+                    </span>
+                    <div className="readinessFileList" aria-label={`${site.site_name} source file readiness`}>
+                      {site.files.map((file) => (
+                        <span
+                          className={file.is_ready ? "stepStatusReady" : "stepStatusPending"}
+                          key={`${site.site_id}-${file.category}`}
+                        >
+                          {file.label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <div>
-                    <strong>{siteUploads.length} files</strong>
-                    <span>{site.id}</span>
+                    <strong>{site.is_ready ? "Ready" : "Incomplete"}</strong>
+                    <span>{site.site_id}</span>
                   </div>
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
         </div>
 

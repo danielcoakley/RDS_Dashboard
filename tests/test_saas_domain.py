@@ -1,4 +1,17 @@
-from backend.domain import Membership, Organization, Role, Run, RunStatus, Upload, UploadStatus, User
+from datetime import datetime, timezone
+
+from backend.domain import (
+    Membership,
+    Organization,
+    ReportApprovalAssignment,
+    ReportApprovalAssignmentStatus,
+    Role,
+    Run,
+    RunStatus,
+    Upload,
+    UploadStatus,
+    User,
+)
 from backend.rbac import Action, can_access_organization, can_perform
 
 
@@ -23,6 +36,7 @@ def test_rbac_owner_manager_viewer_permissions():
     assert can_perform(memberships, "manager", "org_1", Action.MANAGE_UPLOADS)
     assert not can_perform(memberships, "manager", "org_1", Action.MANAGE_MEMBERS)
     assert can_perform(memberships, "viewer", "org_1", Action.READ)
+    assert can_perform(memberships, "viewer", "org_1", Action.COMMENT_REPORTS)
     assert not can_perform(memberships, "viewer", "org_1", Action.MANAGE_RUNS)
 
 
@@ -63,3 +77,32 @@ def test_run_requires_upload_ids():
         assert False, "Expected ValueError for missing upload ids"
     except ValueError as exc:
         assert "upload_ids" in str(exc)
+
+
+def test_report_approval_assignment_validates_status_and_notes():
+    try:
+        ReportApprovalAssignment(
+            id="approval_1",
+            organization_id="org_1",
+            report_id="report_1",
+            assigned_to_user_id="manager_1",
+            assigned_by_user_id="owner_1",
+            notes=" ",
+        )
+        assert False, "Expected blank approval assignment notes to fail"
+    except ValueError as exc:
+        assert "notes" in str(exc)
+
+    try:
+        ReportApprovalAssignment(
+            id="approval_1",
+            organization_id="org_1",
+            report_id="report_1",
+            assigned_to_user_id="manager_1",
+            assigned_by_user_id="owner_1",
+            status=ReportApprovalAssignmentStatus.PENDING,
+            completed_at=datetime.now(timezone.utc),
+        )
+        assert False, "Expected pending approval assignment completion to fail"
+    except ValueError as exc:
+        assert "pending" in str(exc)

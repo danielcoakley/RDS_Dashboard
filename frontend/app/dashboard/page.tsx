@@ -10,31 +10,89 @@ const requiredFiles = [
   { key: "seu_mapping", label: "SEU mapping", hint: "Meter to SEU category CSV" }
 ];
 
-function hasUploadCategory(uploadCategories: Set<string>, key: string): boolean {
-  return uploadCategories.has(key) || uploadCategories.has(key.replace("_", "-"));
+function statusCounts<T extends { status: string }>(items: T[]) {
+  const statuses = ["queued", "running", "succeeded", "failed"];
+  return statuses.map((status) => ({
+    status,
+    count: items.filter((item) => item.status === status).length
+  }));
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 export default async function DashboardPage() {
-  const { mode, sites, meters, uploads, runs, reports, auditEvents } = await loadDashboardData();
-  const uploadCategories = new Set(uploads.map((upload) => upload.category.toLowerCase()));
-  const filesReady = requiredFiles.filter((file) => hasUploadCategory(uploadCategories, file.key)).length;
+  const { mode, sites, meters, uploadReadiness, runs, analysisJobs, reports, auditEvents } =
+    await loadDashboardData();
+  const bestSourceSite = uploadReadiness.sites.reduce(
+    (bestSite, site) => (site.ready_count > (bestSite?.ready_count ?? -1) ? site : bestSite),
+    uploadReadiness.sites[0]
+  );
+  const requiredFileCount = uploadReadiness.required_categories.length || requiredFiles.length;
+  const filesReady = bestSourceSite?.ready_count ?? 0;
   const latestRun = runs[0];
   const latestReport = reports.find((report) => report.run_id === latestRun?.id) ?? reports[0];
   const seuMeters = meters.filter((meter) => meter.is_seu);
-  const hasWorkflowInputs = filesReady === requiredFiles.length && sites.length > 0;
+  const hasWorkflowInputs = uploadReadiness.ready_site_count > 0;
+  const sourceReadiness = requiredFiles.map((file) => ({
+    label: file.label,
+    ready: uploadReadiness.sites.some((site) =>
+      site.files.some((sourceFile) => sourceFile.category === file.key && sourceFile.is_ready)
+    ),
+    storedCount: uploadReadiness.sites.filter((site) =>
+      site.files.some((sourceFile) => sourceFile.category === file.key && sourceFile.is_ready)
+    ).length
+  }));
+  const meterMix = Array.from(
+    meters.reduce((groups, meter) => {
+      const commodity = meter.commodity || "unknown";
+      const key = commodity.toLowerCase();
+      const current = groups.get(key) ?? {
+        commodity: commodity.charAt(0).toUpperCase() + commodity.slice(1),
+        total: 0,
+        seu: 0
+      };
+      current.total += 1;
+      current.seu += meter.is_seu ? 1 : 0;
+      groups.set(key, current);
+      return groups;
+    }, new Map<string, { commodity: string; total: number; seu: number }>())
+  ).map(([, value]) => value);
 
   return (
     <WorkspaceShell
       currentPath="/dashboard"
       title="Energy baseline workflow"
       eyebrow="Analysis"
-      modeLabel={mode === "live" ? "Live workspace" : "Sample workflow"}
+      modeLabel={
+        mode === "live" ? "Live workspace" : mode === "error" ? "Workspace data unavailable" : "Sample workflow"
+      }
       modeDescription={
         mode === "live"
           ? "Use the same baseline workflow as the original dashboard: upload source files, choose years, run analysis, then review outputs."
-          : "Sample data is shown until a live organization is selected."
+          : mode === "error"
+            ? "We could not load your organization's live data from the backend. Reload the page to try again."
+            : "Sample data is shown until a live organization is selected."
       }
+      modeTone={mode === "error" ? "error" : "info"}
     >
+      {mode === "error" ? (
+        <div className="authNotice authError" role="alert">
+          <strong>Workspace data unavailable</strong>
+          <span>
+            Your real workspace data could not be loaded, so no sample or fabricated figures are
+            shown below. Reload the page or try again shortly.
+          </span>
+        </div>
+      ) : null}
+
       <section className="workflowHero" aria-label="Analysis workflow">
         <div>
           <h2>Run ISO 50001 energy analysis</h2>
@@ -57,7 +115,7 @@ export default async function DashboardPage() {
         <div className="summaryTile">
           <span>Source files ready</span>
           <strong>
-            {filesReady}/{requiredFiles.length}
+            {filesReady}/{requiredFileCount}
           </strong>
         </div>
         <div className="summaryTile">
@@ -82,11 +140,12 @@ export default async function DashboardPage() {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>1. Required files</h2>
-            <span>{hasWorkflowInputs ? "Ready to run" : "Complete the input set"}</span>
+            <span>{hasWorkflowInputs ? `${uploadReadiness.ready_site_count} site ready` : "Complete the input set"}</span>
           </div>
           <div className="stepList">
             {requiredFiles.map((file) => {
-              const isReady = hasUploadCategory(uploadCategories, file.key);
+              const sourceFile = bestSourceSite?.files.find((item) => item.category === file.key);
+              const isReady = sourceFile?.is_ready ?? false;
               return (
                 <div className="workflowStep" key={file.key}>
                   <span className={isReady ? "stepStatusReady" : "stepStatusPending"}>
@@ -94,7 +153,7 @@ export default async function DashboardPage() {
                   </span>
                   <div>
                     <strong>{file.label}</strong>
-                    <span>{file.hint}</span>
+                    <span>{bestSourceSite ? bestSourceSite.site_name : file.hint}</span>
                   </div>
                 </div>
               );
@@ -160,9 +219,14 @@ export default async function DashboardPage() {
         <div className="chartPanel wide" id="summary">
           <div className="sectionHeader">
             <h2>General summary</h2>
-            <span>Baseline vs actual</span>
+            <span>Tenant workflow visualization</span>
           </div>
-          <EnergyPerformanceChart />
+          <EnergyPerformanceChart
+            sourceReadiness={sourceReadiness}
+            runStatuses={statusCounts(runs)}
+            jobStatuses={statusCounts(analysisJobs)}
+            meterMix={meterMix}
+          />
         </div>
 
         <div className="listPanel" id="electricity">
@@ -242,7 +306,11 @@ export default async function DashboardPage() {
           <div className="dataRow">
             <div>
               <strong>{latestReport?.report_type ?? "Awaiting report"}</strong>
-              <span>{latestReport?.storage_key ?? "Run analysis to create ISO summary output"}</span>
+              <span>
+                {latestReport
+                  ? `Report ${latestReport.id} from run ${latestReport.run_id}`
+                  : "Run analysis to create ISO summary output"}
+              </span>
             </div>
             {latestReport ? (
               <Link href={`/reports/${latestReport.id}`} className="btn btnGhost btnSm">
@@ -272,7 +340,7 @@ export default async function DashboardPage() {
                 </div>
                 <div>
                   <strong>{event.actor_user_id}</strong>
-                  <span>{event.metadata_json}</span>
+                  <span>{formatDateTime(event.created_at)}</span>
                 </div>
               </div>
             ))}

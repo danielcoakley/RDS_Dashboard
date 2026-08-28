@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
-import { executeLocalAnalysisRun } from "../../lib/api";
+import { queueStoredUploadAnalysisRun } from "../../lib/api";
 import { loadDashboardData } from "../../lib/dashboard-data";
 import { readAppSession } from "../../lib/session";
 
@@ -13,55 +13,19 @@ const requiredFiles = [
   { key: "seu_mapping", label: "SEU mapping" }
 ];
 
-const defaultClientConfig = {
-  client: {
-    id: "rds_client",
-    name: "RDS Site",
-    timezone: "Europe/London",
-    reporting_currency: "GBP"
-  },
-  site: {
-    name: "RDS Site",
-    floor_area_m2: null,
-    activity_metric: null
-  },
-  meters: [
-    {
-      meter_id: "elec_main",
-      display_name: "Main Electricity",
-      commodity: "electricity",
-      unit: "kWh",
-      source_column: "Main Electricity",
-      is_seu: true
-    },
-    {
-      meter_id: "gas_main",
-      display_name: "Main Gas",
-      commodity: "gas",
-      unit: "kWh",
-      source_column: "Main Gas",
-      is_seu: true
-    }
-  ],
-  analysis: {
-    baseline_start: null,
-    baseline_end: null,
-    reporting_start: null,
-    reporting_end: null,
-    weather_normalisation: true,
-    hdd_base_temperature: 15.5,
-    cdd_base_temperature: 22.0,
-    outlier_removal: true
-  },
-  iso50001: {
-    organisation_context: "",
-    energy_policy_reference: "",
-    audit_notes: ""
-  }
-};
-
 type RunsPageProps = {
   searchParams: Promise<{ status?: string; error?: string }>;
+};
+
+type SourcePackage = {
+  encodedValue: string;
+  uploadId: string;
+  sourceUploadIds: string[];
+  siteId: string;
+  siteName: string;
+  readyCount: number;
+  requiredCount: number;
+  isReady: boolean;
 };
 
 function runsMessage(
@@ -71,15 +35,15 @@ function runsMessage(
   if (status === "run-requested") {
     return {
       tone: "success",
-      title: "Analysis complete",
-      body: "The upload, run, and ISO summary report were created from the CSV."
+      title: "Analysis queued",
+      body: "The selected tenant upload was queued for analysis. Run history will update as processing completes."
     };
   }
   if (error === "missing-fields") {
     return {
       tone: "error",
       title: "Analysis not run",
-      body: "Choose a site and an energy CSV before starting analysis."
+      body: "Choose a site source package with stored energy data before starting analysis."
     };
   }
   if (error === "session-missing") {
@@ -99,70 +63,91 @@ function runsMessage(
   return null;
 }
 
-function hasUploadCategory(uploadCategories: Set<string>, key: string): boolean {
-  return uploadCategories.has(key) || uploadCategories.has(key.replace("_", "-"));
+function sourcePackageValue(uploadId: string, sourceUploadIds: string[]): string {
+  return JSON.stringify({ upload_id: uploadId, source_upload_ids: sourceUploadIds });
 }
 
-function parseCsvLine(line: string): string[] {
-  const values: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-    if (char === '"' && next === '"') {
-      current += '"';
-      index += 1;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      values.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
+function notificationDeliveryDetail(
+  notification: Awaited<ReturnType<typeof loadDashboardData>>["notifications"][number]
+): string {
+  if (notification.next_attempt_at) {
+    return `Retry ${notification.next_attempt_at}`;
   }
-
-  values.push(current.trim());
-  return values;
+  if (notification.sent_at) {
+    return `Sent ${notification.sent_at}`;
+  }
+  if (notification.last_attempt_at) {
+    return `Attempted ${notification.last_attempt_at}`;
+  }
+  return notification.channel;
 }
 
-function parseCsvRows(csvText: string): Array<Record<string, string | number>> {
-  const lines = csvText
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const headers = parseCsvLine(lines[0] ?? "");
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
-    return headers.reduce<Record<string, string | number>>((row, header, index) => {
-      const rawValue = values[index] ?? "";
-      const numericValue = Number(rawValue);
-      row[header] = rawValue !== "" && Number.isFinite(numericValue) ? numericValue : rawValue;
-      return row;
-    }, {});
+function buildSourcePackages(
+  uploadReadiness: Awaited<ReturnType<typeof loadDashboardData>>["uploadReadiness"]
+): SourcePackage[] {
+  return uploadReadiness.sites.flatMap((site) => {
+    const energyFile = site.files.find(
+      (file) => file.category === "energy" && file.latest_upload !== null
+    );
+    if (!energyFile?.latest_upload) {
+      return [];
+    }
+    const sourceUploadIds = site.files
+      .filter((file) => file.category !== "energy" && file.latest_upload !== null)
+      .map((file) => file.latest_upload?.id)
+      .filter((uploadId): uploadId is string => Boolean(uploadId));
+    return [
+      {
+        encodedValue: sourcePackageValue(energyFile.latest_upload.id, sourceUploadIds),
+        uploadId: energyFile.latest_upload.id,
+        sourceUploadIds,
+        siteId: site.site_id,
+        siteName: site.site_name,
+        readyCount: site.ready_count,
+        requiredCount: site.required_count,
+        isReady: site.is_ready
+      }
+    ];
   });
 }
 
 export default async function RunsPage({ searchParams }: RunsPageProps) {
   const query = await searchParams;
-  const { mode, runs, reports, uploads, sites } = await loadDashboardData();
-  const uploadCategories = new Set(uploads.map((upload) => upload.category.toLowerCase()));
-  const filesReady = requiredFiles.filter((file) => hasUploadCategory(uploadCategories, file.key)).length;
-  const canRun = mode === "live" && sites.length > 0;
+  const { mode, runs, analysisJobs, notifications, reports, uploadReadiness, sites } = await loadDashboardData();
+  const sourcePackages = buildSourcePackages(uploadReadiness);
+  const openJobs = analysisJobs.filter((job) => job.status === "queued" || job.status === "running");
+  const pendingNotifications = notifications.filter((notification) => notification.status === "pending");
+  const requiredFileCount = uploadReadiness.required_categories.length || requiredFiles.length;
+  const filesReady = uploadReadiness.sites.reduce(
+    (bestReadyCount, site) => Math.max(bestReadyCount, site.ready_count),
+    0
+  );
+  const canRun = mode === "live" && sourcePackages.length > 0;
   const latestRun = runs[0];
   const pageMessage = runsMessage(query.status, query.error);
 
   async function requestRunAction(formData: FormData) {
     "use server";
 
-    const siteId = String(formData.get("site_id") ?? "").trim();
-    const energyFile = formData.get("energy_file");
+    const sourcePackage = String(formData.get("source_package") ?? "").trim();
     const session = await readAppSession();
+    let selectedPackage: { upload_id?: unknown; source_upload_ids?: unknown } = {};
 
-    if (!siteId || !(energyFile instanceof File) || energyFile.size === 0) {
+    try {
+      selectedPackage = JSON.parse(sourcePackage);
+    } catch {
+      redirect("/runs?error=missing-fields");
+    }
+    const uploadId =
+      typeof selectedPackage.upload_id === "string" ? selectedPackage.upload_id.trim() : "";
+    const sourceUploadIds = Array.isArray(selectedPackage.source_upload_ids)
+      ? selectedPackage.source_upload_ids
+          .filter((sourceUploadId): sourceUploadId is string => typeof sourceUploadId === "string")
+          .map((sourceUploadId) => sourceUploadId.trim())
+          .filter((sourceUploadId) => sourceUploadId && sourceUploadId !== uploadId)
+      : [];
+
+    if (!uploadId) {
       redirect("/runs?error=missing-fields");
     }
     if (!session.userId || !session.organizationId) {
@@ -170,34 +155,26 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
     }
 
     const runId = `run_${Date.now()}`;
-    const uploadId = `upload_${Date.now()}`;
     const reportId = `report_${Date.now()}`;
     try {
-      const rows = parseCsvRows(await energyFile.text());
-      if (rows.length === 0) {
-        redirect("/runs?error=missing-fields");
-      }
-      await executeLocalAnalysisRun(
+      await queueStoredUploadAnalysisRun(
         session.userId,
         session.organizationId,
         {
-          site_id: siteId,
           upload_id: uploadId,
           run_id: runId,
           report_id: reportId,
-          filename: energyFile.name,
-          rows,
-          client_config: defaultClientConfig
+          source_upload_ids: sourceUploadIds
         },
         session.authToken
       );
       revalidatePath("/dashboard");
       revalidatePath("/runs");
       revalidatePath("/reports");
-      redirect("/runs?status=run-requested");
     } catch {
       redirect("/runs?error=run-failed");
     }
+    redirect("/runs?status=run-requested");
   }
 
   return (
@@ -205,9 +182,26 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
       currentPath="/runs"
       title="Run analysis"
       eyebrow="Workflow"
-      modeLabel={mode === "live" ? "Live workspace" : "Sample workflow"}
-      modeDescription="Start the baseline analysis once the source files and site are ready."
+      modeLabel={
+        mode === "live" ? "Live workspace" : mode === "error" ? "Workspace data unavailable" : "Sample workflow"
+      }
+      modeDescription={
+        mode === "error"
+          ? "We could not load your organization's live data from the backend. Reload the page to try again."
+          : "Start the baseline analysis once the source files and site are ready."
+      }
+      modeTone={mode === "error" ? "error" : "info"}
     >
+      {mode === "error" ? (
+        <div className="authNotice authError" role="alert">
+          <strong>Workspace data unavailable</strong>
+          <span>
+            Your real run history and job data could not be loaded, so no sample or fabricated
+            figures are shown below. Reload the page or try again shortly.
+          </span>
+        </div>
+      ) : null}
+
       {pageMessage ? (
         <div
           className={`authNotice ${pageMessage.tone === "success" ? "authSuccess" : "authError"}`}
@@ -222,7 +216,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
         <div className="summaryTile">
           <span>Source files</span>
           <strong>
-            {filesReady}/{requiredFiles.length}
+            {filesReady}/{requiredFileCount}
           </strong>
         </div>
         <div className="summaryTile">
@@ -232,6 +226,14 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
         <div className="summaryTile">
           <span>Runs</span>
           <strong>{runs.length}</strong>
+        </div>
+        <div className="summaryTile">
+          <span>Open jobs</span>
+          <strong>{openJobs.length}</strong>
+        </div>
+        <div className="summaryTile">
+          <span>Email notices</span>
+          <strong>{pendingNotifications.length}</strong>
         </div>
         <div className="summaryTile">
           <span>Latest status</span>
@@ -248,23 +250,33 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
           {!canRun ? (
             <div className="authNotice authError" role="alert">
               <strong>Inputs needed</strong>
-              <span>Add a site, then choose the energy CSV you want to analyse.</span>
+              <span>Upload an energy CSV in Source files before starting analysis.</span>
             </div>
           ) : null}
           <form action={requestRunAction} className="inlineForm">
             <label className="authField">
-              <span>Site</span>
-              <select name="site_id" defaultValue={sites[0]?.id ?? ""} disabled={!canRun}>
-                {sites.map((site) => (
-                  <option key={site.id} value={site.id}>
-                    {site.name}
+              <span>Site source package</span>
+              <select
+                name="source_package"
+                defaultValue={sourcePackages[0]?.encodedValue ?? ""}
+                disabled={!canRun}
+              >
+                {sourcePackages.map((sourcePackage) => (
+                  <option key={sourcePackage.uploadId} value={sourcePackage.encodedValue}>
+                    {sourcePackage.siteName} - {sourcePackage.readyCount}/{sourcePackage.requiredCount} files
                   </option>
                 ))}
               </select>
             </label>
             <label className="authField">
-              <span>Energy CSV</span>
-              <input name="energy_file" type="file" accept=".csv,text/csv" disabled={!canRun} />
+              <span>Primary energy upload</span>
+              <select name="upload_preview" defaultValue={sourcePackages[0]?.uploadId ?? ""} disabled>
+                {sourcePackages.map((sourcePackage) => (
+                  <option key={`${sourcePackage.uploadId}-key`} value={sourcePackage.uploadId}>
+                    {sourcePackage.uploadId} - {sourcePackage.sourceUploadIds.length + 1} source files
+                  </option>
+                ))}
+              </select>
             </label>
             <button type="submit" className="btn btnPrimary btnSm" disabled={!canRun}>
               Run analysis
@@ -275,23 +287,106 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
         <div className="listPanel">
           <div className="sectionHeader">
             <h2>Source file readiness</h2>
-            <span>Original dashboard inputs</span>
+            <span>Original dashboard inputs by site</span>
           </div>
           <div className="stepList">
-            {requiredFiles.map((file) => {
-              const isReady = hasUploadCategory(uploadCategories, file.key);
-              return (
-                <div className="workflowStep" key={file.key}>
-                  <span className={isReady ? "stepStatusReady" : "stepStatusPending"}>
-                    {isReady ? "Ready" : "Needed"}
+            {uploadReadiness.sites.length === 0 ? (
+              <div className="workflowStep">
+                <span className="stepStatusPending">Needed</span>
+                <div>
+                  <strong>No sites configured</strong>
+                  <span>Add a site before running analysis.</span>
+                </div>
+              </div>
+            ) : (
+              uploadReadiness.sites.map((site) => (
+                <div className="workflowStep" key={site.site_id}>
+                  <span className={site.is_ready ? "stepStatusReady" : "stepStatusPending"}>
+                    {site.ready_count === site.required_count ? "Ready" : "Needed"}
                   </span>
                   <div>
-                    <strong>{file.label}</strong>
-                    <span>{isReady ? "Recorded" : "Add from Source files"}</span>
+                    <strong>{site.site_name}</strong>
+                    <span>
+                      {site.ready_count}/{site.required_count} source files recorded
+                    </span>
+                    <div className="readinessFileList" aria-label={`${site.site_name} source files`}>
+                      {site.files.map((file) => (
+                        <span
+                          className={file.is_ready ? "stepStatusReady" : "stepStatusPending"}
+                          key={`${site.site_id}-${file.category}`}
+                        >
+                          {file.label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="listPanel">
+          <div className="sectionHeader">
+            <h2>Job queue</h2>
+            <span>Background analysis lifecycle</span>
+          </div>
+          <div className="rowList">
+            {analysisJobs.length === 0 ? (
+              <div className="dataRow">
+                <div>
+                  <strong>No queued jobs</strong>
+                  <span>Queued analysis jobs appear here after a run starts.</span>
+                </div>
+              </div>
+            ) : (
+              analysisJobs.map((job) => (
+                <div className="dataRow" key={job.id}>
+                  <div>
+                    <strong>{job.id}</strong>
+                    <span>
+                      {job.upload_id} - {job.report_id}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>{job.status}</strong>
+                    <span>{job.completed_at ?? job.error_message ?? job.run_id}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="listPanel">
+          <div className="sectionHeader">
+            <h2>Notifications</h2>
+            <span>Email notification outbox</span>
+          </div>
+          <div className="rowList">
+            {notifications.length === 0 ? (
+              <div className="dataRow">
+                <div>
+                  <strong>No notifications yet</strong>
+                  <span>Workflow emails are queued after runs and report approvals change.</span>
+                </div>
+              </div>
+            ) : (
+              notifications.map((notification) => (
+                <div className="dataRow" key={notification.id}>
+                  <div>
+                    <strong>{notification.subject}</strong>
+                    <span>{notification.body}</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {notification.status} - {notification.attempt_count} attempts
+                    </strong>
+                    <span>{notification.error_message ?? notificationDeliveryDetail(notification)}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

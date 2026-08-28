@@ -1,0 +1,14 @@
+{
+  "client": "Acme Corp",
+  "site": "Acme Corp Campus",
+  "source_files": 4,
+  "anonymized_files": {
+    "energy": "sample_data/acme_corp/acme_corp_energy_q4_2025.csv",
+    "hdd": "sample_data/acme_corp/acme_corp_hdd_15_5c_q4_2025.csv",
+    "cdd": "sample_data/acme_corp/acme_corp_cdd_15_5c_q4_2025.csv",
+    "seu_mapping": "sample_data/acme_corp/acme_corp_seu_mapping.csv"
+  },
+  "meter_labels_replaced": 109,
+  "area_labels_replaced": 46,
+  "weather_station_replaced": true
+}

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ClerkWorkspaceControls } from "./ClerkControls";
+import { isClerkFrontendEnabled } from "../lib/auth-config";
 import { loadWorkspaceContext } from "../lib/workspace-context";
 
 const navItems = [
@@ -16,6 +18,7 @@ type WorkspaceShellProps = {
   eyebrow?: string;
   modeLabel: string;
   modeDescription: string;
+  modeTone?: "info" | "error";
   children: ReactNode;
 };
 
@@ -25,9 +28,11 @@ export async function WorkspaceShell({
   eyebrow = "Workspace",
   modeLabel,
   modeDescription,
+  modeTone = "info",
   children
 }: WorkspaceShellProps) {
   const workspace = await loadWorkspaceContext();
+  const useClerkControls = isClerkFrontendEnabled() && workspace.provider === "clerk";
 
   return (
     <main className="appShell">
@@ -46,9 +51,13 @@ export async function WorkspaceShell({
         </div>
         <div className="tenantActions">
           <span className="roleBadge">{workspace.roleLabel}</span>
-          <Link href="/organizations" className="tenantLink">
-            Switch
-          </Link>
+          {useClerkControls ? (
+            <ClerkWorkspaceControls enabled={useClerkControls} />
+          ) : (
+            <Link href="/organizations" className="tenantLink">
+              Switch
+            </Link>
+          )}
         </div>
         <nav className="sideNav" aria-label="Workspace sections">
           {navItems.map((item) => (
@@ -69,12 +78,18 @@ export async function WorkspaceShell({
             <p className="eyebrow">{eyebrow}</p>
             <h1>{title}</h1>
           </div>
-          <Link href={workspace.hasLiveSession ? "/logout" : "/login"} className="userMenu">
-            Sign out
-          </Link>
+          {useClerkControls ? null : (
+            <Link href={workspace.hasLiveSession ? "/logout" : "/login"} className="userMenu">
+              Sign out
+            </Link>
+          )}
         </header>
 
-        <div className="modeBanner" role="status" aria-live="polite">
+        <div
+          className={modeTone === "error" ? "modeBanner modeBannerError" : "modeBanner"}
+          role={modeTone === "error" ? "alert" : "status"}
+          aria-live={modeTone === "error" ? "assertive" : "polite"}
+        >
           <strong>{modeLabel}</strong>
           <span>{modeDescription}</span>
         </div>

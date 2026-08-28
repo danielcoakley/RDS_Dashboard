@@ -44,6 +44,32 @@ def test_audit_permission_is_limited_to_owner_and_manager():
         pass
 
 
+def test_asset_management_permission_allows_owner_and_manager_only():
+    assert require_permission(
+        [Membership(user_id="owner", organization_id="org_1", role=Role.OWNER)],
+        user_id="owner",
+        organization_id="org_1",
+        action=Action.MANAGE_ASSETS,
+    )
+    assert require_permission(
+        [Membership(user_id="manager", organization_id="org_1", role=Role.MANAGER)],
+        user_id="manager",
+        organization_id="org_1",
+        action=Action.MANAGE_ASSETS,
+    )
+
+    try:
+        require_permission(
+            [Membership(user_id="viewer", organization_id="org_1", role=Role.VIEWER)],
+            user_id="viewer",
+            organization_id="org_1",
+            action=Action.MANAGE_ASSETS,
+        )
+        assert False, "Expected viewer asset management to be denied"
+    except AccessDenied:
+        pass
+
+
 def test_require_permission_rejects_role_without_action():
     memberships = [Membership(user_id="user_1", organization_id="org_1", role=Role.VIEWER)]
 

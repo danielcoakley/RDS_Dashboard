@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from src.data_quality import clean_meter_data, detect_data_gaps, detect_outliers
-from src.data_standardisation import standardise_meter_data
-from src.enpi_model import build_baseline_model, calculate_enpi
-from src.reporting import calculate_consumption_summary, generate_iso_summary
+from .data_quality import clean_meter_data, detect_data_gaps, detect_outliers
+from .data_standardisation import standardise_meter_data
+from .enpi_model import build_baseline_model, calculate_enpi
+from .reporting import calculate_consumption_summary, generate_iso_summary
 
 
 @dataclass(frozen=True)

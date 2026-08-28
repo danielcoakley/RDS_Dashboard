@@ -1,7 +1,7 @@
 import pandas as pd
 
 from analytics.service import AnalyticsRunResult, run_meter_analysis
-from src.config_loader import load_client_config
+from analytics.config_loader import load_client_config
 
 
 def test_run_meter_analysis_wraps_existing_analytics_pipeline():

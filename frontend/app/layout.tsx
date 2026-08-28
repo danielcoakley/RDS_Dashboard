@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { isClerkFrontendEnabled } from "../lib/auth-config";
 import "./styles.css";
 
 const sans = Plus_Jakarta_Sans({
@@ -18,9 +20,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const content = isClerkFrontendEnabled() ? <ClerkProvider>{children}</ClerkProvider> : children;
+
   return (
     <html lang="en">
-      <body className={sans.className}>{children}</body>
+      <body className={sans.className}>{content}</body>
     </html>
   );
 }

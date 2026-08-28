@@ -1977,6 +1977,15 @@ h3 {
   line-height: 1.55;
 }
 
+.modeBannerError {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(249, 115, 22, 0.1));
+}
+
+.modeBannerError strong {
+  color: #b91c1c;
+}
+
 .userMenu {
   min-width: 92px;
   min-height: 42px;

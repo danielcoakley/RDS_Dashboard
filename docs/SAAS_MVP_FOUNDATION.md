@@ -23,7 +23,7 @@ Users can sign up, create or join an organization, upload tenant-scoped energy a
 - Basic admin views for tenant profile and user management.
 
 ### Non-goals for MVP
-- Billing, dunning, SSO/SCIM, white-labeling, and enterprise connectors.
+- Payment-provider checkout, invoicing, dunning, SSO/SCIM, white-labeling, and enterprise connectors.
 - Preserving the current Streamlit UI for its own sake.
 - Production object storage or auth providers without explicit credentials and deployment decisions.
 
@@ -53,9 +53,12 @@ An analytics execution for one organization and site. Runs record lifecycle stat
 ### Report
 A generated artifact from a run. Reports record report type, storage key, creation time, and publishing state.
 
+### Subscription
+Tenant billing metadata. Subscriptions record the current plan, trial/period status, provider identifiers when available, and usage limits for the organization.
+
 ## Access Model
 
-- Owner can manage organization settings, memberships, uploads, runs, and reports.
+- Owner can manage organization settings, memberships, subscription metadata, uploads, runs, and reports.
 - Manager can manage sites, meters, uploads, runs, and reports.
 - Viewer can read sites, meters, run history, and reports.
 - All access checks must include organization id.

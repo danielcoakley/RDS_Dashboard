@@ -1,4 +1,9 @@
-from backend.storage_keys import report_storage_key, safe_key_part, upload_storage_key
+from backend.storage_keys import (
+    evidence_package_storage_key,
+    report_storage_key,
+    safe_key_part,
+    upload_storage_key,
+)
 
 
 def test_upload_storage_key_is_tenant_and_site_scoped():
@@ -21,6 +26,20 @@ def test_report_storage_key_is_run_scoped():
     )
 
     assert key == "tenants/org_1/sites/site_1/runs/run_1/reports/iso-summary.json"
+
+
+def test_evidence_package_storage_key_is_report_scoped():
+    key = evidence_package_storage_key(
+        organization_id="Org 1",
+        report_id="Report 100",
+        package_id="Evidence Package 1",
+        filename="ISO Evidence Package.json",
+    )
+
+    assert key == (
+        "tenants/org-1/reports/report-100/evidence-packages/"
+        "evidence-package-1/iso-evidence-package.json"
+    )
 
 
 def test_safe_key_part_rejects_blank_values():

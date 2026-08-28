@@ -52,10 +52,10 @@ export default async function InviteAcceptancePage({
         role: session.role,
         authToken: session.auth_token
       });
-      redirect(`/dashboard?joined=1`);
     } catch {
       redirect(`/join/${inviteId}?error=accept-failed`);
     }
+    redirect(`/dashboard?joined=1`);
   }
 
   return (

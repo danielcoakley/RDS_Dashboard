@@ -1,0 +1,17 @@
+.git
+.codex-*.log
+.codex-runtime
+.pytest_cache
+.saas
+.saas-artifacts
+Data
+build
+dist
+frontend/.next
+frontend/node_modules
+frontend/tsconfig.tsbuildinfo
+__pycache__
+*.pyc
+RDS_Day.csv
+EIDW_HDD_15.5C.csv
+EIDW_CDD_15.5C.csv

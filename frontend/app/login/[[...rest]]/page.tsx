@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { SignIn } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import { createDevSession } from "../../lib/api";
-import { writeAppSession } from "../../lib/session";
+import { createDevSession } from "../../../lib/api";
+import { isClerkFrontendEnabled } from "../../../lib/auth-config";
+import { writeAppSession } from "../../../lib/session";
 
 type LoginPageProps = {
   searchParams: Promise<{ error?: string }>;
@@ -20,6 +22,7 @@ function loginErrorMessage(error: string | undefined): string | null {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const query = await searchParams;
   const errorMessage = loginErrorMessage(query.error);
+  const useClerk = isClerkFrontendEnabled();
 
   async function loginAction(formData: FormData) {
     "use server";
@@ -31,6 +34,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       redirect("/login?error=missing-fields");
     }
 
+    let hasOrganization = false;
     try {
       const session = await createDevSession({
         user_id: userId,
@@ -42,10 +46,34 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         role: session.role,
         authToken: session.auth_token
       });
-      redirect(session.organization_id ? "/dashboard" : "/organizations");
+      hasOrganization = Boolean(session.organization_id);
     } catch {
       redirect("/login?error=session-failed");
     }
+    redirect(hasOrganization ? "/dashboard" : "/organizations");
+  }
+
+  if (useClerk) {
+    return (
+      <main className="authShell">
+        <section className="authCard authCardCentered">
+          <p className="eyebrow">Sign In</p>
+          <h1>Open your workspace</h1>
+          <p className="authLead">
+            Sign in with your managed account, then choose the active client organization for this
+            session.
+          </p>
+          <div className="clerkAuthFrame">
+            <SignIn />
+          </div>
+          <div className="authActions">
+            <Link href="/reset" className="btn btnGhost btnLg">
+              Recover account
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -78,6 +106,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <button type="submit" className="btn btnPrimary btnLg">
               Sign in
             </button>
+            <Link href="/reset" className="btn btnGhost btnLg">
+              Recover account
+            </Link>
             <Link href="/signup" className="btn btnGhost btnLg">
               Create workspace
             </Link>

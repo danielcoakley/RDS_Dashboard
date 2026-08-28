@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { SignUp } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import { createDevSession, createOwnerOrganization } from "../../lib/api";
-import { writeAppSession } from "../../lib/session";
+import { createDevSession, createOwnerOrganization } from "../../../lib/api";
+import { isClerkFrontendEnabled } from "../../../lib/auth-config";
+import { writeAppSession } from "../../../lib/session";
 
 type SignupPageProps = {
   searchParams: Promise<{ error?: string }>;
@@ -20,6 +22,7 @@ function signupErrorMessage(error: string | undefined): string | null {
 export default async function SignupPage({ searchParams }: SignupPageProps) {
   const query = await searchParams;
   const errorMessage = signupErrorMessage(query.error);
+  const useClerk = isClerkFrontendEnabled();
 
   async function signupAction(formData: FormData) {
     "use server";
@@ -55,10 +58,33 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         role: session.role,
         authToken: session.auth_token
       });
-      redirect("/dashboard");
     } catch {
       redirect("/signup?error=signup-failed");
     }
+    redirect("/dashboard");
+  }
+
+  if (useClerk) {
+    return (
+      <main className="authShell">
+        <section className="authCard authCardCentered">
+          <p className="eyebrow">Create Workspace</p>
+          <h1>Create your organization</h1>
+          <p className="authLead">
+            Create your managed account in Clerk, then use organization onboarding to activate the
+            client workspace.
+          </p>
+          <div className="clerkAuthFrame">
+            <SignUp />
+          </div>
+          <div className="authActions">
+            <Link href="/reset" className="btn btnGhost btnLg">
+              Recover account
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -109,6 +135,9 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
             </button>
             <Link href="/login" className="btn btnGhost btnLg">
               I already have access
+            </Link>
+            <Link href="/reset" className="btn btnGhost btnLg">
+              Recover account
             </Link>
           </div>
         </form>
