@@ -6,3 +6,9 @@ EIDW_CDD_15.5C.csv
 /Data
 /dist
 *.pyc
+node_modules/
+.next/
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+.codex-runtime/
