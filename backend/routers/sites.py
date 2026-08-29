@@ -59,7 +59,6 @@ def get_site(site_id: int, user: User = Depends(get_current_user), db: Session =
 
     out = SiteDetail.model_validate(site)
     out.meter_count = meter_count
-    out.created_at = site.created_at.isoformat()
     out.latest_reading = latest.date.isoformat() if latest else None
     return out
 

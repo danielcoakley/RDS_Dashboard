@@ -14,7 +14,6 @@ def list_objectives(user: User = Depends(get_current_user), db: Session = Depend
     result = []
     for o in objs:
         out = ObjectiveOut.model_validate(o)
-        out.created_at = o.created_at.isoformat()
         result.append(out)
     return result
 
@@ -35,7 +34,7 @@ def create_objective(payload: ObjectiveCreate, user: User = Depends(get_current_
     db.commit()
     db.refresh(obj)
     out = ObjectiveOut.model_validate(obj)
-    out.created_at = obj.created_at.isoformat()
+
     return out
 
 
@@ -49,7 +48,7 @@ def update_objective(obj_id: int, payload: ObjectiveUpdate, user: User = Depends
     db.commit()
     db.refresh(obj)
     out = ObjectiveOut.model_validate(obj)
-    out.created_at = obj.created_at.isoformat()
+
     return out
 
 

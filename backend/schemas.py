@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, List
 
 
@@ -49,7 +49,7 @@ class SiteOut(BaseModel):
     latitude: Optional[float]
     longitude: Optional[float]
     timezone: str
-    created_at: str
+    created_at: datetime
     meter_count: int = 0
     class Config:
         from_attributes = True

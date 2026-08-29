@@ -36,7 +36,7 @@ def create_review(payload: EnergyReviewCreate, user: User = Depends(get_current_
     db.commit()
     db.refresh(review)
     out = EnergyReviewOut.model_validate(review)
-    out.created_at = review.created_at.isoformat()
+
     return out
 
 
@@ -51,7 +51,6 @@ def update_review(review_id: int, payload: EnergyReviewCreate, user: User = Depe
     db.commit()
     db.refresh(review)
     out = EnergyReviewOut.model_validate(review)
-    out.created_at = review.created_at.isoformat()
     return out
 
 
