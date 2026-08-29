@@ -77,9 +77,13 @@ export const api = {
     formData.append('file', file);
     return request(`/api/data/seu-mapping/${siteId}`, { method: 'POST', body: formData });
   },
+  listUploads: (siteId: number) => request(`/api/data/uploads/${siteId}`),
+  dataSummary: (siteId: number) => request(`/api/data/summary/${siteId}`),
 
   // Analytics
   runAnalysis: (data: any) => request('/api/analytics/analysis', { method: 'POST', body: JSON.stringify(data) }),
+  analysisBundle: (siteId: number, baselineYear: number, comparisonYear: number) =>
+    request(`/api/analytics/bundle/${siteId}?baseline_year=${baselineYear}&comparison_year=${comparisonYear}`),
   availableYears: (siteId: number) => request(`/api/analytics/years/${siteId}`),
   monthlyComparison: (siteId: number, baselineYear: number, comparisonYear: number) =>
     request(`/api/analytics/monthly/${siteId}?baseline_year=${baselineYear}&comparison_year=${comparisonYear}`),

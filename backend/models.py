@@ -52,6 +52,7 @@ class Site(Base):
     weather_data = relationship("WeatherData", back_populates="site", cascade="all, delete-orphan")
     objectives = relationship("Objective", back_populates="site")
     energy_reviews = relationship("EnergyReview", back_populates="site")
+    uploads = relationship("DataUpload", back_populates="site", cascade="all, delete-orphan")
 
 
 class Meter(Base):
@@ -93,6 +94,21 @@ class WeatherData(Base):
 
     site = relationship("Site", back_populates="weather_data")
     __table_args__ = (UniqueConstraint("site_id", "date", name="uq_site_date_weather"),)
+
+
+class DataUpload(Base):
+    """Tracks files uploaded for a site (energy data + SEU mappings)."""
+    __tablename__ = "data_uploads"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False)
+    filename = Column(String(500), nullable=False)
+    kind = Column(String(50), nullable=False)  # energy, seu_mapping
+    records = Column(Integer, default=0)
+    detail = Column(String(255))
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    site = relationship("Site", back_populates="uploads")
 
 
 class EnergyReview(Base):

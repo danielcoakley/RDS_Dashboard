@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
+import { AnalysisProvider } from '@/lib/analysis';
 
 export const metadata: Metadata = {
   title: 'EnMS — ISO 50001 Energy Management Platform',
@@ -11,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <AnalysisProvider>{children}</AnalysisProvider>
+        </AuthProvider>
       </body>
     </html>
   );

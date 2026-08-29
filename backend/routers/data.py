@@ -4,8 +4,8 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from models import User, Site, Meter, EnergyReading, WeatherData
-from schemas import WeatherStatus
+from models import User, Site, Meter, EnergyReading, WeatherData, DataUpload
+from schemas import WeatherStatus, DataUploadOut, DataSummary
 from auth import get_current_user
 from database import get_db
 from weather import fetch_weather_for_site
@@ -154,6 +154,16 @@ async def upload_energy_data(
 
     db.commit()
 
+    # Record the uploaded file
+    upload = DataUpload(
+        org_id=user.org_id, site_id=site_id,
+        filename=file.filename or "upload.csv", kind="energy",
+        records=readings_added,
+        detail=f"{meters_created} meters, {len(meters_map)} total",
+    )
+    db.add(upload)
+    db.commit()
+
     # Auto-fetch weather data for the date range of uploaded readings
     if site.latitude is not None and site.longitude is not None:
         date_range = db.query(
@@ -252,8 +262,67 @@ async def upload_seu_mapping(
             updated += 1
 
     db.commit()
+
+    # Record the uploaded SEU mapping file
+    upload = DataUpload(
+        org_id=user.org_id, site_id=site_id,
+        filename=file.filename or "seu_mapping.csv", kind="seu_mapping",
+        records=updated,
+        detail=f"{updated} meters mapped",
+    )
+    db.add(upload)
+    db.commit()
+
     return {
         "updated": updated,
         "ignored": len(ignored),
         "message": f"Updated SEU categories for {updated} meters" + (f", removed {len(ignored)} ignored meters" if ignored else ""),
     }
+
+
+@router.get("/uploads/{site_id}", response_model=list[DataUploadOut])
+def list_uploads(site_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """List files uploaded for a site (energy data + SEU mappings)."""
+    site = db.query(Site).filter(Site.id == site_id, Site.org_id == user.org_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    uploads = db.query(DataUpload).filter(DataUpload.site_id == site_id).order_by(DataUpload.uploaded_at.desc()).all()
+    result = []
+    for u in uploads:
+        out = DataUploadOut(
+            id=u.id, filename=u.filename, kind=u.kind, records=u.records,
+            detail=u.detail, uploaded_at=u.uploaded_at.isoformat(),
+        )
+        result.append(out)
+    return result
+
+
+@router.get("/summary/{site_id}", response_model=DataSummary)
+def data_summary(site_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Data coverage summary for a site: meters, readings, date range, weather, uploads."""
+    site = db.query(Site).filter(Site.id == site_id, Site.org_id == user.org_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    meter_count = db.query(func.count(Meter.id)).filter(Meter.site_id == site_id).scalar() or 0
+    total_readings = db.query(func.count(EnergyReading.id)).join(Meter).filter(Meter.site_id == site_id).scalar() or 0
+    date_range = db.query(
+        func.min(EnergyReading.date), func.max(EnergyReading.date)
+    ).join(Meter).filter(Meter.site_id == site_id).first()
+    weather_days = db.query(func.count(WeatherData.id)).filter(WeatherData.site_id == site_id).scalar() or 0
+    uploads = db.query(DataUpload).filter(DataUpload.site_id == site_id).order_by(DataUpload.uploaded_at.desc()).all()
+
+    return DataSummary(
+        meters=meter_count,
+        total_readings=total_readings,
+        date_start=date_range[0].isoformat() if date_range and date_range[0] else None,
+        date_end=date_range[1].isoformat() if date_range and date_range[1] else None,
+        weather_days=weather_days,
+        weather_status="available" if weather_days > 0 else "not_fetched",
+        uploads=[
+            DataUploadOut(
+                id=u.id, filename=u.filename, kind=u.kind, records=u.records,
+                detail=u.detail, uploaded_at=u.uploaded_at.isoformat(),
+            ) for u in uploads
+        ],
+    )

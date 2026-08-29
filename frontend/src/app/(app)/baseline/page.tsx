@@ -1,98 +1,44 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
+import { useAnalysis } from '@/lib/analysis';
+import { LineChart, Loader2 } from 'lucide-react';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false }) as any;
 
 export default function BaselinePage() {
-  const [sites, setSites] = useState<any[]>([]);
-  const [selectedSite, setSelectedSite] = useState<number | null>(null);
-  const [years, setYears] = useState<number[]>([]);
-  const [baselineYear, setBaselineYear] = useState<number | null>(null);
-  const [comparisonYear, setComparisonYear] = useState<number | null>(null);
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [monthly, setMonthly] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { selectedSiteId, availableYears, baselineYear, comparisonYear, bundle, status, error } = useAnalysis();
 
-  useEffect(() => { api.listSites().then(setSites); }, []);
-
-  useEffect(() => {
-    if (selectedSite) {
-      api.availableYears(selectedSite).then((res: any) => {
-        setYears(res.years);
-        if (res.years.length >= 2) {
-          setBaselineYear(res.years[0]);
-          setComparisonYear(res.years[res.years.length - 1]);
-        }
-      });
-      setAnalysis(null);
-      setMonthly(null);
-    }
-  }, [selectedSite]);
-
-  const runAnalysis = async () => {
-    if (!selectedSite || !baselineYear || !comparisonYear) return;
-    setLoading(true);
-    setError('');
-    try {
-      const [a, m] = await Promise.all([
-        api.runAnalysis({ site_id: selectedSite, baseline_year: baselineYear, comparison_year: comparisonYear }),
-        api.monthlyComparison(selectedSite, baselineYear, comparisonYear),
-      ]);
-      setAnalysis(a);
-      setMonthly(m);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const analysis = bundle?.analysis;
+  const monthly = bundle?.monthly;
 
   return (
     <div>
       <h1 className="mb-2 text-2xl font-bold text-ink-900">Baseline & EnPI Analysis</h1>
-      <p className="mb-8 text-sm text-ink-500">Climate-normalized energy baseline with regression models per meter (ISO 50001 §6.4–6.5)</p>
+      <p className="mb-8 text-sm text-ink-500">Climate-normalized energy baseline with regression models per meter (ISO 50001 §6.4–6.5). Select a site &amp; years in the sidebar to run.</p>
 
-      {/* Controls */}
-      <div className="mb-6 flex flex-wrap items-end gap-4 rounded-xl border border-ink-100 bg-white p-5">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-ink-700">Site</label>
-          <select value={selectedSite || ''} onChange={(e) => setSelectedSite(Number(e.target.value))}
-            className="rounded-lg border border-ink-200 px-4 py-2.5 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100">
-            <option value="">Select site...</option>
-            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+      {!selectedSiteId && (
+        <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center">
+          <LineChart className="mx-auto mb-3 h-10 w-10 text-ink-300" />
+          <p className="text-ink-500">Select a site in the sidebar to begin analysis.</p>
         </div>
-        {years.length >= 2 && (
-          <>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700">Baseline Year</label>
-              <select value={baselineYear || ''} onChange={(e) => setBaselineYear(Number(e.target.value))}
-                className="rounded-lg border border-ink-200 px-4 py-2.5 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100">
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700">Comparison Year</label>
-              <select value={comparisonYear || ''} onChange={(e) => setComparisonYear(Number(e.target.value))}
-                className="rounded-lg border border-ink-200 px-4 py-2.5 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100">
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <button onClick={runAnalysis} disabled={loading}
-              className="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
-              {loading ? 'Analyzing...' : 'Run Analysis'}
-            </button>
-          </>
-        )}
-      </div>
+      )}
+
+      {selectedSiteId && availableYears.length < 2 && (
+        <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center">
+          <p className="text-ink-500">Not enough years of data to run analysis. Upload energy data spanning at least 2 years.</p>
+        </div>
+      )}
+
+      {status === 'loading' && selectedSiteId && availableYears.length >= 2 && (
+        <div className="flex items-center gap-2 rounded-xl border border-ink-100 bg-white p-8 text-ink-500">
+          <Loader2 className="h-5 w-5 animate-spin text-brand-600" /> Calculating baseline &amp; EnPI…
+        </div>
+      )}
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      {analysis && (
+      {status === 'ready' && analysis && (
         <>
           {/* Summary cards */}
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
@@ -130,12 +76,6 @@ export default function BaselinePage() {
             </div>
           )}
         </>
-      )}
-
-      {selectedSite && years.length < 2 && (
-        <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center">
-          <p className="text-ink-500">Not enough years of data to run analysis. Upload energy data spanning at least 2 years.</p>
-        </div>
       )}
     </div>
   );

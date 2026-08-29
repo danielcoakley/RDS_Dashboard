@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Plus, Upload, CloudSun, Trash2, ArrowLeft, Zap } from 'lucide-react';
+import { useAnalysis } from '@/lib/analysis';
+import { Plus, Upload, CloudSun, Trash2, ArrowLeft, Zap, FileText, Database, CalendarRange, CheckCircle2, Activity } from 'lucide-react';
 
 const SEU_CATEGORIES = [
   'Boiler', 'AHU', 'Catering',
@@ -20,21 +21,27 @@ export default function SiteDetailPage() {
   const [site, setSite] = useState<any>(null);
   const [meters, setMeters] = useState<any[]>([]);
   const [weather, setWeather] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showMeterForm, setShowMeterForm] = useState(false);
   const [meterForm, setMeterForm] = useState({ name: '', utility_type: 'electricity', seu_category: 'Unknown' });
   const [fetchingWeather, setFetchingWeather] = useState(false);
 
+  const { selectedSiteId, selectSite, invalidate } = useAnalysis();
+  const isActiveSite = selectedSiteId === siteId;
+
   const load = async () => {
     try {
-      const [s, m, w] = await Promise.all([
+      const [s, m, w, sum] = await Promise.all([
         api.getSite(siteId),
         api.listMeters(siteId),
         api.weatherStatus(siteId).catch(() => null),
+        api.dataSummary(siteId).catch(() => null),
       ]);
       setSite(s);
       setMeters(m);
       setWeather(w);
+      setSummary(sum);
     } finally {
       setLoading(false);
     }
@@ -121,6 +128,58 @@ export default function SiteDetailPage() {
         </div>
       </div>
 
+      {/* Data coverage & uploaded files */}
+      {summary && (
+        <div className="mb-6 rounded-xl border border-ink-100 bg-white p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-semibold text-ink-900">Data &amp; Analysis</h3>
+            {isActiveSite ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700">
+                <CheckCircle2 className="h-4 w-4" /> Active analysis site
+              </span>
+            ) : (
+              <button onClick={() => selectSite(siteId)}
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+                <Activity className="h-4 w-4" /> Set as analysis site
+              </button>
+            )}
+          </div>
+
+          {/* Coverage stats */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Stat icon={Database} label="Meters" value={summary.meters} />
+            <Stat icon={Zap} label="Readings" value={summary.total_readings?.toLocaleString()} />
+            <Stat icon={CalendarRange} label="Data range"
+              value={summary.date_start ? `${summary.date_start} → ${summary.date_end}` : '—'} small />
+            <Stat icon={CloudSun} label="Weather days" value={summary.weather_days?.toLocaleString()} />
+          </div>
+
+          {/* Uploaded files */}
+          <div className="mt-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">Uploaded files</p>
+            {summary.uploads && summary.uploads.length > 0 ? (
+              <ul className="divide-y divide-ink-50">
+                {summary.uploads.map((u: any) => (
+                  <li key={u.id} className="flex items-center gap-3 py-2">
+                    <FileText className="h-4 w-4 shrink-0 text-ink-400" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink-900">{u.filename}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      u.kind === 'energy' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+                    }`}>
+                      {u.kind === 'energy' ? 'Energy data' : 'SEU map'}
+                    </span>
+                    <span className="hidden shrink-0 text-xs text-ink-400 sm:inline">{u.records?.toLocaleString()} records</span>
+                    <span className="shrink-0 text-xs text-ink-400">{new Date(u.uploaded_at).toLocaleDateString()}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-400">No files uploaded yet. Use “Upload Data” to add energy data and SEU mappings.</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Meters */}
       <h2 className="mb-4 text-lg font-semibold text-ink-900">Meters ({meters.length})</h2>
       {meters.length === 0 ? (
@@ -197,6 +256,18 @@ export default function SiteDetailPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Stat({ icon: Icon, label, value, small }: { icon: any; label: string; value: any; small?: boolean }) {
+  return (
+    <div className="rounded-lg bg-ink-50 px-3 py-2.5">
+      <div className="flex items-center gap-1.5 text-ink-400">
+        <Icon className="h-3.5 w-3.5" />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <p className={`mt-1 font-semibold text-ink-900 ${small ? 'text-xs' : 'text-lg'}`}>{value ?? '—'}</p>
     </div>
   );
 }

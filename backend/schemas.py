@@ -181,5 +181,27 @@ class WeatherStatus(BaseModel):
     status: str = "not_fetched"
 
 
+# --- Data uploads / coverage ---
+class DataUploadOut(BaseModel):
+    id: int
+    filename: str
+    kind: str
+    records: int
+    detail: Optional[str] = None
+    uploaded_at: str
+    class Config:
+        from_attributes = True
+
+
+class DataSummary(BaseModel):
+    meters: int
+    total_readings: int
+    date_start: Optional[str] = None
+    date_end: Optional[str] = None
+    weather_days: int = 0
+    weather_status: str = "not_fetched"
+    uploads: List[DataUploadOut] = []
+
+
 # Fix forward references
 TokenResponse.model_rebuild()

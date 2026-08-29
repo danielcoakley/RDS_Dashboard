@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useAnalysis } from '@/lib/analysis';
 import { Upload, FileText, CheckCircle2, ArrowLeft, CloudSun, Tags } from 'lucide-react';
 
 export default function UploadPage() {
@@ -19,6 +20,7 @@ export default function UploadPage() {
   const [seuDragOver, setSeuDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const seuInputRef = useRef<HTMLInputElement>(null);
+  const { selectSite, invalidate } = useAnalysis();
 
   const handleFile = (f: File) => {
     setFile(f);
@@ -38,6 +40,9 @@ export default function UploadPage() {
     try {
       const res = await api.uploadData(siteId, file);
       setResult(res);
+      // Make this the active analysis site and (re)run analysis with the new data
+      selectSite(siteId);
+      invalidate(siteId);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -52,6 +57,9 @@ export default function UploadPage() {
     try {
       const res = await api.uploadSeuMapping(siteId, seuFile);
       setSeuResult(res);
+      // SEU categories changed — re-run analysis if this is the active site
+      selectSite(siteId);
+      invalidate(siteId);
     } catch (err: any) {
       setError(err.message);
     } finally {
