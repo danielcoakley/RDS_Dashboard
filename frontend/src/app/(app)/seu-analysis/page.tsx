@@ -14,6 +14,7 @@ export default function SEUAnalysisPage() {
   const [comparisonYear, setComparisonYear] = useState<number | null>(null);
   const [sankey, setSankey] = useState<any>(null);
   const [seuSummary, setSeuSummary] = useState<any>(null);
+  const [seuMonthly, setSeuMonthly] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { api.listSites().then(setSites); }, []);
@@ -29,6 +30,7 @@ export default function SEUAnalysisPage() {
       });
       setSankey(null);
       setSeuSummary(null);
+      setSeuMonthly(null);
     }
   }, [selectedSite]);
 
@@ -36,12 +38,14 @@ export default function SEUAnalysisPage() {
     if (!selectedSite || !baselineYear || !comparisonYear) return;
     setLoading(true);
     try {
-      const [sk, ss] = await Promise.all([
+      const [sk, ss, sm] = await Promise.all([
         api.sankey(selectedSite, baselineYear, comparisonYear),
         api.seuSummary(selectedSite, baselineYear, comparisonYear),
+        api.seuMonthly(selectedSite, baselineYear, comparisonYear),
       ]);
       setSankey(sk);
       setSeuSummary(ss);
+      setSeuMonthly(sm);
     } finally {
       setLoading(false);
     }
@@ -112,6 +116,56 @@ export default function SEUAnalysisPage() {
         <div className="grid gap-6 sm:grid-cols-2">
           {seuSummary.gas?.length > 0 && <SEUTable title="Gas SEU Summary" data={seuSummary.gas} />}
           {seuSummary.electricity?.length > 0 && <SEUTable title="Electricity SEU Summary" data={seuSummary.electricity} />}
+        </div>
+      )}
+
+      {/* Monthly SEU charts */}
+      {seuMonthly && (seuMonthly.gas?.length > 0 || seuMonthly.electricity?.length > 0) && (
+        <div className="mt-6">
+          {seuMonthly.gas?.length > 0 && (
+            <div className="mb-8">
+              <h2 className="mb-4 text-lg font-semibold text-ink-900">Monthly Consumption by SEU — Gas</h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {seuMonthly.gas.map((chart: any, i: number) => (
+                  <div key={`g${i}`} className="rounded-xl border border-ink-100 bg-white p-5">
+                    <h3 className="mb-3 font-medium text-ink-900">{chart.seu_category}</h3>
+                    <Plot
+                      data={[
+                        { x: chart.months, y: chart.baseline, type: 'bar', name: `${baselineYear} Actual`, marker: { color: 'rgba(200,200,200,0.6)' } },
+                        { x: chart.months, y: chart.actual, type: 'bar', name: `${comparisonYear} Actual`, marker: { color: 'rgba(255,153,51,0.7)' } },
+                        { x: chart.months, y: chart.predicted, type: 'scatter', mode: 'lines+markers', name: 'Predicted', line: { dash: 'dash', color: '#ff6b6b' } },
+                      ]}
+                      layout={{ height: 280, margin: { l: 50, r: 20, t: 10, b: 40 }, xaxis: { title: 'Month' }, yaxis: { title: 'kWh' }, legend: { x: 0, y: 1.15, orientation: 'h' } }}
+                      config={{ responsive: true, displayModeBar: false }}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {seuMonthly.electricity?.length > 0 && (
+            <div>
+              <h2 className="mb-4 text-lg font-semibold text-ink-900">Monthly Consumption by SEU — Electricity</h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {seuMonthly.electricity.map((chart: any, i: number) => (
+                  <div key={`e${i}`} className="rounded-xl border border-ink-100 bg-white p-5">
+                    <h3 className="mb-3 font-medium text-ink-900">{chart.seu_category}</h3>
+                    <Plot
+                      data={[
+                        { x: chart.months, y: chart.baseline, type: 'bar', name: `${baselineYear} Actual`, marker: { color: 'rgba(200,200,200,0.6)' } },
+                        { x: chart.months, y: chart.actual, type: 'bar', name: `${comparisonYear} Actual`, marker: { color: 'rgba(51,153,255,0.7)' } },
+                        { x: chart.months, y: chart.predicted, type: 'scatter', mode: 'lines+markers', name: 'Predicted', line: { dash: 'dash', color: '#ff6b6b' } },
+                      ]}
+                      layout={{ height: 280, margin: { l: 50, r: 20, t: 10, b: 40 }, xaxis: { title: 'Month' }, yaxis: { title: 'kWh' }, legend: { x: 0, y: 1.15, orientation: 'h' } }}
+                      config={{ responsive: true, displayModeBar: false }}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

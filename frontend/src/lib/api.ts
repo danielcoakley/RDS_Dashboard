@@ -71,6 +71,11 @@ export const api = {
   },
   refreshWeather: (siteId: number) => request(`/api/data/weather/${siteId}/fetch`, { method: 'POST' }),
   weatherStatus: (siteId: number) => request(`/api/data/weather/${siteId}/status`),
+  uploadSeuMapping: (siteId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/data/seu-mapping/${siteId}`, { method: 'POST', body: formData });
+  },
 
   // Analytics
   runAnalysis: (data: any) => request('/api/analytics/analysis', { method: 'POST', body: JSON.stringify(data) }),
@@ -81,6 +86,8 @@ export const api = {
     request(`/api/analytics/sankey/${siteId}?baseline_year=${baselineYear}&comparison_year=${comparisonYear}`),
   seuSummary: (siteId: number, baselineYear: number, comparisonYear: number) =>
     request(`/api/analytics/seu-summary/${siteId}?baseline_year=${baselineYear}&comparison_year=${comparisonYear}`),
+  seuMonthly: (siteId: number, baselineYear: number, comparisonYear: number) =>
+    request(`/api/analytics/seu-monthly/${siteId}?baseline_year=${baselineYear}&comparison_year=${comparisonYear}`),
 
   // Objectives
   listObjectives: () => request('/api/objectives'),

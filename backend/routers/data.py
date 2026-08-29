@@ -41,17 +41,24 @@ async def upload_energy_data(
     readings_added = 0
 
     if "Metered Sector" in df.columns and "Utility" in df.columns:
-        # Original RDS-style format
+        # Original RDS-style format:
+        # Each meter has TWO rows — a "Meter" row with the name/utility, then a
+        # "Day" row with the actual consumption values in date columns.
+        # We find the "Meter" rows (where Utility is set) and read data from idx+1.
         meters_map = {}  # meter_name → meter obj
 
-        for idx, row in df.iterrows():
+        for idx in range(len(df) - 1):
+            row = df.iloc[idx]
             utility = str(row.get("Utility", "")).strip()
-            if not utility or str(row.get("Period", "")).strip() != "Day":
-                # Only process daily period rows; the meter name is in the previous row
+            meter_name = str(row.get("Metered Sector", "")).strip()
+
+            # Skip rows without a utility type or meter name
+            if not utility or utility == "nan" or not meter_name or meter_name == "nan":
                 continue
 
-            meter_name = str(row.get("Metered Sector", "")).strip()
-            if not meter_name or meter_name == "nan":
+            # The next row should be the "Day" data row
+            data_row = df.iloc[idx + 1]
+            if str(data_row.get("Period", "")).strip() != "Day":
                 continue
 
             utility_type = "gas" if "gas" in utility.lower() else "electricity"
@@ -73,14 +80,14 @@ async def upload_energy_data(
                 meters_map[meter_name] = meter
 
             meter = meters_map[meter_name]
-            # Date columns are everything after the first 4 metadata columns
+            # Date columns are everything after the metadata columns
             date_cols = [c for c in df.columns if c not in ("Metered Sector", "Utility", "Units", "Period")]
             for col in date_cols:
                 try:
                     dt = pd.to_datetime(col, dayfirst=True, errors="coerce")
                     if pd.isna(dt):
                         continue
-                    val = row[col]
+                    val = data_row[col]
                     if pd.isna(val) or str(val).strip() == "":
                         continue
                     consumption = float(val)
@@ -193,3 +200,60 @@ def weather_status(site_id: int, user: User = Depends(get_current_user), db: Ses
         total_days=count,
         status="available" if count > 0 else "not_fetched",
     )
+
+
+@router.post("/seu-mapping/{site_id}")
+async def upload_seu_mapping(
+    site_id: int,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a SEU mapping CSV (Meter, SEU_Category) and apply it to existing meters."""
+    site = db.query(Site).filter(Site.id == site_id, Site.org_id == user.org_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    content = await file.read()
+    try:
+        df = pd.read_csv(io.BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse CSV: {e}")
+
+    required = ["Meter", "SEU_Category"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"SEU mapping must have columns: {', '.join(required)}")
+
+    df["Meter"] = df["Meter"].astype(str).str.strip()
+
+    # Remove meters marked "Ignore" from the site
+    ignored = df[df["SEU_Category"].astype(str).str.strip() == "Ignore"]["Meter"].tolist()
+    if ignored:
+        for meter_name in ignored:
+            meter = db.query(Meter).filter(
+                Meter.site_id == site_id, Meter.name == meter_name
+            ).first()
+            if meter:
+                db.delete(meter)
+
+    # Update SEU categories for remaining meters
+    updated = 0
+    for _, row in df.iterrows():
+        meter_name = str(row["Meter"]).strip()
+        seu_category = str(row["SEU_Category"]).strip()
+        if seu_category == "Ignore":
+            continue
+        meter = db.query(Meter).filter(
+            Meter.site_id == site_id, Meter.name == meter_name
+        ).first()
+        if meter:
+            meter.seu_category = seu_category
+            updated += 1
+
+    db.commit()
+    return {
+        "updated": updated,
+        "ignored": len(ignored),
+        "message": f"Updated SEU categories for {updated} meters" + (f", removed {len(ignored)} ignored meters" if ignored else ""),
+    }

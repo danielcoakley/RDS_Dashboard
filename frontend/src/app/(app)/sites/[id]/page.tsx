@@ -7,9 +7,9 @@ import { api } from '@/lib/api';
 import { Plus, Upload, CloudSun, Trash2, ArrowLeft, Zap } from 'lucide-react';
 
 const SEU_CATEGORIES = [
-  'Boiler Systems (Gas)', 'Air Handling Units (Gas)', 'Catering Equipment',
-  'Lighting Systems', 'Air Conditioning & Refrigeration', 'Electric Space Heaters',
-  'ICT & Server Room Cooling', 'EV Charging Infrastructure', 'Onsite Solar PV',
+  'Boiler', 'AHU', 'Catering',
+  'Lighting', 'AC / Refrigeration', 'Heater',
+  'Electric Vehicles', 'Solar', 'Mains',
   'Other', 'Unknown',
 ];
 

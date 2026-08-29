@@ -8,15 +8,18 @@ from sklearn.linear_model import LinearRegression
 
 # SEU category → normalization method
 SEU_NORMS = {
-    "Boiler Systems (Gas)": "hdd",
-    "Air Handling Units (Gas)": "hdd",
-    "Catering Equipment": "opday",
-    "Lighting Systems": "opday",
-    "Air Conditioning & Refrigeration": "cdd",
-    "Electric Space Heaters": "hdd",
+    "Boiler": "hdd",
+    "AHU": "hdd",
+    "Catering": "opday",
+    "Lighting": "opday",
+    "AC / Refrigeration": "cdd",
+    "Heater": "hdd",
     "ICT & Server Room Cooling": "fixed",
-    "EV Charging Infrastructure": "opday",
-    "Onsite Solar PV": "pv",
+    "Electric Vehicles": "opday",
+    "Solar": "pv",
+    "Mains": "opday",
+    "Other": "opday",
+    "Unknown": "opday",
 }
 
 
@@ -150,6 +153,89 @@ def get_monthly_comparison(data: pd.DataFrame, summary_df: pd.DataFrame, climate
             "baseline": monthly_train.values.tolist(),
             "actual": monthly_test.values.tolist(),
             "predicted": [float(v) for v in monthly_pred.values],
+        })
+    return charts
+
+
+def get_seu_monthly(data: pd.DataFrame, summary_df: pd.DataFrame, climate_col: str, train_year: int, test_year: int):
+    """Return monthly baseline/actual/predicted per SEU category for charting.
+
+    Mirrors the SEU monthly plots from the original Streamlit app's tab4.
+    """
+    if data.empty:
+        return []
+
+    full_months = pd.Index(range(1, 13), name="month")
+    months_labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+
+    # Order categories by actual consumption (comparison year), descending
+    actual_by_seu = (
+        data[data["year"] == test_year]
+        .groupby("seu_category")["consumption"].sum()
+        .sort_values(ascending=False)
+    )
+    categories = actual_by_seu.index.tolist()
+
+    charts = []
+    for category in categories:
+        cat_data = data[data["seu_category"] == category].copy()
+        if cat_data.empty:
+            continue
+
+        # Baseline monthly actuals
+        baseline = cat_data[cat_data["year"] == train_year]
+        baseline_monthly = baseline.groupby(baseline["date"].dt.month)["consumption"].sum().reindex(full_months, fill_value=0)
+
+        # Comparison year monthly actuals
+        actual = cat_data[cat_data["year"] == test_year]
+        actual_monthly = actual.groupby(actual["date"].dt.month)["consumption"].sum().reindex(full_months, fill_value=0)
+
+        # Predicted: run regression per meter, sum monthly predictions
+        pred_monthly = np.zeros(12)
+        for meter in cat_data["meter"].unique():
+            meter_data = cat_data[cat_data["meter"] == meter].copy()
+            train = meter_data[meter_data["year"] == train_year]
+            test = meter_data[meter_data["year"] == test_year]
+            if len(train) < 10 or len(test) < 1:
+                continue
+            # Align train to same date range as test
+            max_test_date = test["date"].max()
+            baseline_cutoff = pd.Timestamp(year=train_year, month=max_test_date.month, day=max_test_date.day)
+            train = train[train["date"] <= baseline_cutoff]
+
+            seu = meter_data["seu_category"].iloc[0] if pd.notna(meter_data["seu_category"].iloc[0]) else "Unknown"
+            norm = SEU_NORMS.get(seu, "opday")
+
+            if norm in ("hdd", "cdd") and climate_col in train.columns:
+                train_clean = train.dropna(subset=[climate_col, "consumption"])
+                test_clean = test.dropna(subset=[climate_col, "consumption"])
+                if len(train_clean) < 10 or len(test_clean) < 1:
+                    continue
+                X_train = train_clean[[climate_col, "is_operational"]]
+                model = LinearRegression().fit(X_train, train_clean["consumption"])
+                test_clean = test_clean.copy()
+                test_clean["predicted"] = model.predict(test_clean[[climate_col, "is_operational"]])
+            elif norm not in ("fixed", "pv"):
+                train_clean = train.dropna(subset=["consumption"])
+                test_clean = test.dropna(subset=["consumption"])
+                if len(train_clean) < 10 or len(test_clean) < 1:
+                    continue
+                X_train = train_clean[["is_operational"]]
+                model = LinearRegression().fit(X_train, train_clean["consumption"])
+                test_clean = test_clean.copy()
+                test_clean["predicted"] = model.predict(test_clean[["is_operational"]])
+            else:
+                continue
+
+            monthly_pred = test_clean.groupby(test_clean["date"].dt.month)["predicted"].sum().reindex(full_months, fill_value=0)
+            pred_monthly += monthly_pred.values
+
+        charts.append({
+            "seu_category": category,
+            "months": months_labels,
+            "baseline": baseline_monthly.values.tolist(),
+            "actual": actual_monthly.values.tolist(),
+            "predicted": [float(v) for v in pred_monthly],
         })
     return charts
 

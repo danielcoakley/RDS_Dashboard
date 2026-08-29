@@ -5,7 +5,7 @@ from models import User, Site, Meter, EnergyReading, WeatherData
 from schemas import AnalysisRequest, MeterSummary, AnalysisSummary, SEUFlowNode
 from auth import get_current_user
 from database import get_db
-from analytics import build_dataframe, evaluate_meter_models, get_monthly_comparison, build_sankey
+from analytics import build_dataframe, evaluate_meter_models, get_monthly_comparison, build_sankey, get_seu_monthly
 import pandas as pd
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -141,3 +141,23 @@ def seu_summary(
         "gas": aggregate_by_seu(gas_summary),
         "electricity": aggregate_by_seu(elec_summary),
     }
+
+
+@router.get("/seu-monthly/{site_id}")
+def seu_monthly(
+    site_id: int,
+    baseline_year: int = Query(...),
+    comparison_year: int = Query(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Monthly baseline/actual/predicted per SEU category — mirrors the original app's SEU charts."""
+    site, meters, gas_df, elec_df = _load_site_data(db, site_id, user.org_id)
+
+    gas_summary = evaluate_meter_models(gas_df, baseline_year, comparison_year) if not gas_df.empty else pd.DataFrame()
+    elec_summary = evaluate_meter_models(elec_df, baseline_year, comparison_year) if not elec_df.empty else pd.DataFrame()
+
+    gas_charts = get_seu_monthly(gas_df, gas_summary, "hdd", baseline_year, comparison_year) if not gas_df.empty else []
+    elec_charts = get_seu_monthly(elec_df, elec_summary, "cdd", baseline_year, comparison_year) if not elec_df.empty else []
+
+    return {"gas": gas_charts, "electricity": elec_charts}
