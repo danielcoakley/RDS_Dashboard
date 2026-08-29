@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
+from datetime import date
 from hashlib import sha256
 from io import BytesIO, StringIO
 import json
 from typing import Any
+from uuid import uuid4
 
 import pandas as pd
 
@@ -34,6 +36,11 @@ from .retention import report_expires_at_for_organization
 from .storage_keys import report_storage_key, upload_storage_key
 from .store import SaaSStore
 from .subscriptions import require_run_capacity
+from .weather import (
+    DEFAULT_CDD_BASE_TEMPERATURE_C,
+    DEFAULT_HDD_BASE_TEMPERATURE_C,
+    fetch_daily_degree_days,
+)
 
 
 SOURCE_CATEGORY_ORDER = {
@@ -1234,3 +1241,143 @@ def execute_analysis_run_from_upload(
 ) -> AnalysisRunOutcome:
     queued = queue_analysis_run_from_upload(store, request)
     return process_analysis_job(store, queued.job.id, artifact_store)
+
+
+def _energy_upload_date_range(
+    store: SaaSStore,
+    artifact_store: TenantArtifactStore,
+    organization_id: str,
+    upload_id: str,
+) -> tuple[date, date] | None:
+    upload_row = store.get_upload(upload_id)
+    if upload_row is None:
+        return None
+    upload = _upload_from_row(upload_row)
+    payload = artifact_store.get_bytes(organization_id, upload.storage_key)
+    raw = _normalise_dataframe_columns(_read_csv_payload(payload))
+    if _is_legacy_energy_export(raw):
+        summary = _date_range_summary(_legacy_energy_export_to_long_dataframe(raw)["Date"])
+    else:
+        timestamp_column = _find_timestamp_column(raw)
+        if timestamp_column is None:
+            return None
+        summary = _date_range_summary(raw[timestamp_column])
+    if summary["start_date"] is None or summary["end_date"] is None:
+        return None
+    return date.fromisoformat(summary["start_date"]), date.fromisoformat(summary["end_date"])
+
+
+def _create_weather_upload(
+    store: SaaSStore,
+    artifact_store: TenantArtifactStore,
+    organization_id: str,
+    site_id: str,
+    user_id: str,
+    category: str,
+    daily_frame: pd.DataFrame,
+) -> Upload:
+    value_column = category.upper()
+    csv_df = daily_frame[["date", category]].rename(columns={"date": "Date", category: value_column})
+    upload_id = f"upload_{category}_{uuid4().hex}"
+    storage_key = upload_storage_key(organization_id, site_id, upload_id, f"{category}.csv")
+    upload = Upload(
+        id=upload_id,
+        organization_id=organization_id,
+        site_id=site_id,
+        uploaded_by_user_id=user_id,
+        category=category,
+        storage_key=storage_key,
+        checksum=_dataframe_checksum(csv_df),
+        status=UploadStatus.STORED,
+    )
+    artifact_store.put_text(organization_id, storage_key, csv_df.to_csv(index=False))
+    store.create_upload(upload)
+    return upload
+
+
+def _auto_generate_weather_upload_ids(
+    store: SaaSStore,
+    artifact_store: TenantArtifactStore,
+    organization_id: str,
+    site_id: str,
+    user_id: str,
+    energy_upload_id: str,
+    client_config: dict[str, Any],
+) -> list[str]:
+    """Auto-fetch HDD/CDD for the site's location and the energy upload's date range.
+
+    Stores the result as ordinary hdd/cdd uploads so the rest of the pipeline
+    (_resolve_stored_run_uploads, _legacy_baseline_metrics) needs no changes.
+    Returns [] (never raises) when there is no site location, no date range, or
+    the weather lookup fails -- the run proceeds without weather normalization
+    exactly as it would have with no HDD/CDD uploaded at all.
+    """
+    site = store.get_site(site_id)
+    if site is None or not site.has_location:
+        return []
+    date_range = _energy_upload_date_range(store, artifact_store, organization_id, energy_upload_id)
+    if date_range is None:
+        return []
+
+    analysis_config = client_config.get("analysis", {}) if isinstance(client_config, dict) else {}
+    hdd_base = analysis_config.get("hdd_base_temperature") or DEFAULT_HDD_BASE_TEMPERATURE_C
+    cdd_base = analysis_config.get("cdd_base_temperature") or DEFAULT_CDD_BASE_TEMPERATURE_C
+
+    try:
+        daily_frame = fetch_daily_degree_days(
+            site.latitude,
+            site.longitude,
+            date_range[0],
+            date_range[1],
+            hdd_base_temperature_c=hdd_base,
+            cdd_base_temperature_c=cdd_base,
+        )
+    except ValueError:
+        return []
+
+    hdd_upload = _create_weather_upload(
+        store, artifact_store, organization_id, site_id, user_id, UploadCategory.HDD.value, daily_frame
+    )
+    cdd_upload = _create_weather_upload(
+        store, artifact_store, organization_id, site_id, user_id, UploadCategory.CDD.value, daily_frame
+    )
+    return [hdd_upload.id, cdd_upload.id]
+
+
+def execute_analysis_run_from_energy_upload(
+    store: SaaSStore,
+    user_id: str,
+    organization_id: str,
+    site_id: str,
+    energy_upload_id: str,
+    run_id: str,
+    report_id: str,
+    artifact_store: TenantArtifactStore,
+    seu_mapping_upload_id: str | None = None,
+    client_config: dict[str, Any] | None = None,
+) -> AnalysisRunOutcome:
+    resolved_config = client_config or resolve_analysis_config_for_run(
+        store, organization_id, site_id
+    )
+    weather_upload_ids = _auto_generate_weather_upload_ids(
+        store,
+        artifact_store,
+        organization_id,
+        site_id,
+        user_id,
+        energy_upload_id,
+        resolved_config,
+    )
+    source_upload_ids = tuple(
+        upload_id for upload_id in [*weather_upload_ids, seu_mapping_upload_id] if upload_id
+    )
+    request = StoredUploadAnalysisRunRequest(
+        user_id=user_id,
+        organization_id=organization_id,
+        upload_id=energy_upload_id,
+        run_id=run_id,
+        report_id=report_id,
+        source_upload_ids=source_upload_ids,
+        client_config=client_config,
+    )
+    return execute_analysis_run_from_upload(store, request, artifact_store)

@@ -181,6 +181,7 @@ from .run_orchestration import (
     AnalysisRunRequest,
     StoredUploadAnalysisRunRequest,
     execute_analysis_run,
+    execute_analysis_run_from_energy_upload,
     execute_analysis_run_from_upload,
     process_analysis_job,
     queue_analysis_run_from_upload,
@@ -189,6 +190,7 @@ from .run_orchestration import (
 from .runtime_config import runtime_env_from_env
 from .security import SecurityConfigurationError, configure_security_middleware
 from .storage_keys import evidence_package_storage_key, safe_key_part, upload_storage_key
+from .weather import geocode_location
 from .store import SaaSStore
 from .support import (
     SupportAuthenticationError,
@@ -213,9 +215,11 @@ REPORT_EVIDENCE_PACKAGE_PDF_CONTENT_TYPE = "application/pdf"
 REPORT_EVIDENCE_PACKAGE_TYPE = "iso50001_report_evidence"
 UPLOAD_SOURCE_FILE_CONTRACT: tuple[tuple[UploadCategory, str, bool], ...] = (
     (UploadCategory.ENERGY, "Energy data", True),
-    (UploadCategory.HDD, "Heating degree days", True),
-    (UploadCategory.CDD, "Cooling degree days", True),
-    (UploadCategory.SEU_MAPPING, "SEU mapping", True),
+    # HDD/CDD are auto-fetched from the site's location (backend/weather.py) once
+    # an energy upload exists, so they are no longer a manual/required upload.
+    (UploadCategory.HDD, "Heating degree days (auto)", False),
+    (UploadCategory.CDD, "Cooling degree days (auto)", False),
+    (UploadCategory.SEU_MAPPING, "SEU mapping", False),
 )
 SOURCE_FILE_DATE_HEADERS = {"date", "timestamp", "datetime", "time"}
 DEFAULT_EVIDENCE_PACK_TITLE = "ISO 50001 Evidence Package"
@@ -616,12 +620,16 @@ class SiteSummary(BaseModel):
     organization_id: str
     name: str
     timezone: str
+    location_label: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class SiteCreate(BaseModel):
     site_id: str
     name: str
     timezone: str
+    location: str | None = None
 
 
 class MembershipSummary(BaseModel):
@@ -1252,6 +1260,17 @@ class StoredUploadAnalysisRunCreate(BaseModel):
     run_id: str
     report_id: str
     source_upload_ids: list[str] = Field(default_factory=list)
+    client_config: dict[str, Any] | None = None
+
+
+class EnergyAnalysisRunCreate(BaseModel):
+    site_id: str
+    upload_id: str
+    filename: str
+    content_base64: str
+    run_id: str
+    report_id: str
+    seu_mapping_upload_id: str | None = None
     client_config: dict[str, Any] | None = None
 
 
@@ -3440,6 +3459,9 @@ def list_site_summaries(
             organization_id=site.organization_id,
             name=site.name,
             timezone=site.timezone,
+            location_label=site.location_label,
+            latitude=site.latitude,
+            longitude=site.longitude,
         )
         for site in store.list_sites(organization_id)
     ]
@@ -3458,11 +3480,20 @@ def create_site_summary(
         action=Action.MANAGE_ASSETS,
     )
     require_site_capacity(store, organization_id)
+    latitude: float | None = None
+    longitude: float | None = None
+    location_label = payload.location.strip() if payload.location else None
+    if location_label:
+        latitude, longitude = geocode_location(location_label)
+
     site = Site(
         id=payload.site_id,
         organization_id=organization_id,
         name=payload.name,
         timezone=payload.timezone,
+        location_label=location_label,
+        latitude=latitude,
+        longitude=longitude,
     )
     audit_event = AuditEvent(
         id=f"audit_site_{site.id}",
@@ -3484,6 +3515,9 @@ def create_site_summary(
         organization_id=site.organization_id,
         name=site.name,
         timezone=site.timezone,
+        location_label=site.location_label,
+        latitude=site.latitude,
+        longitude=site.longitude,
     )
 
 
@@ -6455,6 +6489,55 @@ def execute_stored_upload_analysis_run(
     )
 
 
+def execute_energy_upload_analysis_run(
+    user_id: str,
+    organization_id: str,
+    payload: EnergyAnalysisRunCreate,
+    store: SaaSStore,
+    artifact_store: TenantArtifactStore,
+) -> LocalAnalysisRunResponse:
+    """Store an energy CSV and run analysis in one call, auto-fetching HDD/CDD.
+
+    This is the single-step entry point the Analyze page uses: no separate
+    HDD/CDD/SEU uploads are required first -- weather is derived from the
+    site's location (see execute_analysis_run_from_energy_upload).
+    """
+    create_upload_content_summary(
+        user_id,
+        organization_id,
+        UploadContentCreate(
+            upload_id=payload.upload_id,
+            site_id=payload.site_id,
+            category=UploadCategory.ENERGY.value,
+            filename=payload.filename,
+            content_base64=payload.content_base64,
+        ),
+        store,
+        artifact_store,
+    )
+    outcome = execute_analysis_run_from_energy_upload(
+        store,
+        user_id=user_id,
+        organization_id=organization_id,
+        site_id=payload.site_id,
+        energy_upload_id=payload.upload_id,
+        run_id=payload.run_id,
+        report_id=payload.report_id,
+        artifact_store=artifact_store,
+        seu_mapping_upload_id=payload.seu_mapping_upload_id,
+        client_config=payload.client_config,
+    )
+    run_row = store.list_runs(organization_id, site_id=payload.site_id)[0]
+    return LocalAnalysisRunResponse(
+        upload_id=outcome.upload.id,
+        run_upload_ids=list(outcome.run.upload_ids),
+        run_id=outcome.run.id,
+        report_id=outcome.report.id,
+        run_status=run_row["status"],
+        iso_summary=outcome.analytics.iso_summary,
+    )
+
+
 def queue_stored_upload_analysis_run(
     user_id: str,
     organization_id: str,
@@ -8919,6 +9002,25 @@ def create_app(
         user: AuthenticatedUser = Depends(request_authenticated_user),
     ) -> LocalAnalysisRunResponse:
         return execute_stored_upload_analysis_run(
+            user_id_for_organization_route(user, organization_id),
+            organization_id,
+            payload,
+            request.app.state.store,
+            request.app.state.artifact_store,
+        )
+
+    @app.post(
+        "/organizations/{organization_id}/runs/execute-energy-upload",
+        response_model=LocalAnalysisRunResponse,
+        tags=["runs"],
+    )
+    def organization_execute_energy_upload_run(
+        organization_id: str,
+        payload: EnergyAnalysisRunCreate,
+        request: Request,
+        user: AuthenticatedUser = Depends(request_authenticated_user),
+    ) -> LocalAnalysisRunResponse:
+        return execute_energy_upload_analysis_run(
             user_id_for_organization_route(user, organization_id),
             organization_id,
             payload,

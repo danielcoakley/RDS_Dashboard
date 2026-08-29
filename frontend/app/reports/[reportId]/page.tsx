@@ -1377,12 +1377,12 @@ export default async function ReportDetailPage({ params, searchParams }: ReportD
             </div>
             <div className="dataRow">
               <div>
-                <strong>Open runs</strong>
-                <span>Review run queue and statuses</span>
+                <strong>Run analysis</strong>
+                <span>Review run history or start a new run</span>
               </div>
               <div>
-                <Link href="/runs" className="btn btnGhost btnSm">
-                  Open runs
+                <Link href="/dashboard" className="btn btnGhost btnSm">
+                  Open Analyze
                 </Link>
               </div>
             </div>

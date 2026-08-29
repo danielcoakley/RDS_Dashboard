@@ -6038,13 +6038,13 @@ def test_upload_readiness_summary_groups_source_files_by_site():
     hdd_file = next(file for file in site_1.files if file.category == UploadCategory.HDD.value)
     missing_file = next(file for file in site_1.files if file.category == UploadCategory.SEU_MAPPING.value)
 
-    assert summary.required_categories == ["energy", "hdd", "cdd", "seu_mapping"]
+    assert summary.required_categories == ["energy"]
     assert summary.site_count == 2
-    assert summary.ready_site_count == 0
-    assert site_1.ready_count == 2
-    assert site_1.required_count == 4
-    assert not site_1.is_ready
-    assert site_2.ready_count == 1
+    assert summary.ready_site_count == 1
+    assert site_1.ready_count == 1
+    assert site_1.required_count == 1
+    assert site_1.is_ready
+    assert site_2.ready_count == 0
     assert energy_file.is_ready
     assert energy_file.latest_upload is not None
     assert energy_file.latest_upload.id == "upload_1"

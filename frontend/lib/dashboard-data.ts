@@ -44,7 +44,10 @@ const demoData: DashboardData = {
       id: "site_1",
       organization_id: "org_1",
       name: "Main Site",
-      timezone: "Europe/London"
+      timezone: "Europe/London",
+      location_label: "London, UK",
+      latitude: 51.5074,
+      longitude: -0.1278
     }
   ],
   meters: [

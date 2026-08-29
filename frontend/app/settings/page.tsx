@@ -371,7 +371,7 @@ function settingsMessage(
     return {
       tone: "error",
       title: "Site not added",
-      body: "We could not add that site. Check details and try again."
+      body: "We could not resolve that location. Check the address or postcode and try again."
     };
   }
   if (error === "meter-failed") {
@@ -674,9 +674,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
     const name = String(formData.get("name") ?? "").trim();
     const timezone = String(formData.get("timezone") ?? "").trim();
+    const location = String(formData.get("location") ?? "").trim();
     const session = await readAppSession();
 
-    if (!name || !timezone) {
+    if (!name || !timezone || !location) {
       redirect("/settings?error=missing-fields");
     }
     if (!session.userId || !session.organizationId) {
@@ -691,13 +692,13 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {
           site_id: siteId,
           name,
-          timezone
+          timezone,
+          location
         },
         session.authToken
       );
       revalidatePath("/settings");
       revalidatePath("/dashboard");
-      revalidatePath("/uploads");
     } catch {
       redirect("/settings?error=site-failed");
     }
@@ -740,7 +741,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       );
       revalidatePath("/settings");
       revalidatePath("/dashboard");
-      revalidatePath("/uploads");
     } catch {
       redirect("/settings?error=meter-failed");
     }
@@ -1088,7 +1088,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     }
 
     revalidatePath("/settings");
-    revalidatePath("/runs");
+    revalidatePath("/dashboard");
     redirect("/settings?status=analysis-config-updated");
   }
 
@@ -1135,7 +1135,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     }
 
     revalidatePath("/settings");
-    revalidatePath("/uploads");
+    revalidatePath("/dashboard");
     redirect("/settings?status=data-connector-created");
   }
 
@@ -1178,7 +1178,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     }
 
     revalidatePath("/settings");
-    revalidatePath("/uploads");
+    revalidatePath("/dashboard");
     redirect("/settings?status=data-connector-updated");
   }
 
@@ -2111,6 +2111,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 <span>Timezone</span>
                 <input name="timezone" type="text" placeholder="Europe/London" />
               </label>
+              <label className="authField">
+                <span>Location (address or postcode)</span>
+                <input name="location" type="text" placeholder="London, UK" />
+              </label>
               <button type="submit" className="btn btnPrimary btnSm">
                 Add site
               </button>
@@ -2125,7 +2129,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 </div>
                 <div>
                   <strong>{meters.filter((meter) => meter.site_id === site.id).length} meters</strong>
-                  <span>{site.id}</span>
+                  <span>
+                    {site.location_label ?? "No location set"}
+                    {site.latitude !== null && site.longitude !== null
+                      ? " (auto weather enabled)"
+                      : " (add a location to enable automatic HDD/CDD)"}
+                  </span>
                 </div>
               </div>
             ))}

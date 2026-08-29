@@ -361,12 +361,16 @@ export type SiteSummary = {
   organization_id: string;
   name: string;
   timezone: string;
+  location_label: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type SiteCreatePayload = {
   site_id: string;
   name: string;
   timezone: string;
+  location?: string | null;
 };
 
 export type MembershipSummary = {
@@ -449,6 +453,17 @@ export type StoredUploadAnalysisRunPayload = {
   run_id: string;
   report_id: string;
   source_upload_ids?: string[];
+  client_config?: Record<string, unknown> | null;
+};
+
+export type EnergyAnalysisRunPayload = {
+  site_id: string;
+  upload_id: string;
+  filename: string;
+  content_base64: string;
+  run_id: string;
+  report_id: string;
+  seu_mapping_upload_id?: string | null;
   client_config?: Record<string, unknown> | null;
 };
 
@@ -1615,6 +1630,23 @@ export function executeStoredUploadAnalysisRun(
 ): Promise<LocalAnalysisRunResponse> {
   return apiFetch<LocalAnalysisRunResponse>(
     `/organizations/${organizationId}/runs/execute-upload`,
+    userId,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    authToken
+  );
+}
+
+export function executeEnergyUploadAnalysisRun(
+  userId: string,
+  organizationId: string,
+  payload: EnergyAnalysisRunPayload,
+  authToken?: string | null
+): Promise<LocalAnalysisRunResponse> {
+  return apiFetch<LocalAnalysisRunResponse>(
+    `/organizations/${organizationId}/runs/execute-energy-upload`,
     userId,
     {
       method: "POST",

@@ -62,7 +62,7 @@ def test_initialize_database_from_sqlite_config_creates_schema_file(tmp_path):
     conn = initialize_database_from_config(config)
 
     assert db_path.exists()
-    assert conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 52
+    assert conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 53
 
 
 def test_postgres_connection_adapter_translates_sqlite_placeholders():
@@ -187,6 +187,7 @@ def test_migrations_are_idempotent():
         "050_data_connectors",
         "051_data_connector_syncs",
         "052_worker_connector_heartbeat_counts",
+        "053_site_location",
     ]
 
 

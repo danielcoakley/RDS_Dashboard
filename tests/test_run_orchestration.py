@@ -7,11 +7,13 @@ from backend.access_control import AccessDenied
 from backend.artifacts import InMemoryTenantArtifactStore
 from backend.database import initialize_database
 from backend.domain import Membership, Organization, Role, Site, Upload, UploadStatus, User
+from backend import run_orchestration
 from backend.run_orchestration import (
     AnalysisRunRequest,
     StoredUploadAnalysisRunRequest,
     _report_artifact_content,
     execute_analysis_run,
+    execute_analysis_run_from_energy_upload,
     execute_analysis_run_from_upload,
     process_analysis_job,
     queue_analysis_run_from_upload,
@@ -413,6 +415,159 @@ def test_execute_analysis_run_from_upload_converts_legacy_source_package():
         item["seu_category"]: item["consumption"]
         for item in legacy_baseline["total_consumption_by_seu_category"]
     } == {"Boiler": 22.0, "Lighting": 42.0}
+
+
+def _store_legacy_energy_upload(store: SaaSStore, artifact_store) -> None:
+    artifact_store.put_text(
+        "org_1",
+        "tenants/org_1/sites/site_1/uploads/upload_energy/legacy-energy.csv",
+        (
+            "Metered Sector,Utility,Units,Period,01/01/2025,02/01/2025\n"
+            "Boiler gas,Gas,kWh,Total,21,25\n"
+            ",,,Day,10,12\n"
+            "Office power,Electrical,kWh,Total,41,45\n"
+            ",,,Day,20,22\n"
+        ),
+    )
+    store.create_upload(
+        Upload(
+            id="upload_energy",
+            organization_id="org_1",
+            site_id="site_1",
+            uploaded_by_user_id="user_1",
+            category="energy",
+            storage_key="tenants/org_1/sites/site_1/uploads/upload_energy/legacy-energy.csv",
+            checksum="upload_energy_checksum",
+            status=UploadStatus.STORED,
+        )
+    )
+
+
+def _legacy_meter_config() -> dict:
+    config = load_client_config("config/clients/example_client.yaml")
+    config["meters"][0].update(
+        meter_id="boiler_gas",
+        display_name="Boiler gas",
+        commodity="gas",
+        source_column="Boiler gas",
+        is_seu=True,
+    )
+    config["meters"][1].update(
+        meter_id="office_power",
+        display_name="Office power",
+        commodity="electricity",
+        source_column="Office power",
+        is_seu=True,
+    )
+    return config
+
+
+def test_execute_analysis_run_from_energy_upload_auto_generates_weather_uploads(monkeypatch):
+    store = SaaSStore(initialize_database())
+    artifact_store = InMemoryTenantArtifactStore()
+    seed_tenant(store)
+    store.conn.execute(
+        "UPDATE sites SET location_label = ?, latitude = ?, longitude = ? WHERE id = ?",
+        ("London, UK", 51.5074, -0.1278, "site_1"),
+    )
+    _store_legacy_energy_upload(store, artifact_store)
+
+    fetched_range: dict[str, object] = {}
+
+    def fake_fetch(latitude, longitude, start_date, end_date, **kwargs):
+        fetched_range["latitude"] = latitude
+        fetched_range["longitude"] = longitude
+        fetched_range["start_date"] = start_date
+        fetched_range["end_date"] = end_date
+        return pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2025-01-01", "2025-01-02"]),
+                "hdd": [6.0, 8.0],
+                "cdd": [0.0, 1.0],
+            }
+        )
+
+    monkeypatch.setattr(run_orchestration, "fetch_daily_degree_days", fake_fetch)
+
+    outcome = execute_analysis_run_from_energy_upload(
+        store,
+        user_id="user_1",
+        organization_id="org_1",
+        site_id="site_1",
+        energy_upload_id="upload_energy",
+        run_id="run_1",
+        report_id="report_1",
+        artifact_store=artifact_store,
+        client_config=_legacy_meter_config(),
+    )
+
+    assert fetched_range["latitude"] == 51.5074
+    assert fetched_range["longitude"] == -0.1278
+
+    uploads_by_category = {upload["category"]: upload for upload in store.list_uploads("org_1")}
+    assert "hdd" in uploads_by_category
+    assert "cdd" in uploads_by_category
+
+    report_artifact = json.loads(artifact_store.get_text("org_1", outcome.report.storage_key))
+    weather_coverage = report_artifact["legacy_baseline"]["weather_coverage"]
+    assert weather_coverage["hdd"]["record_count"] == 2
+    assert weather_coverage["cdd"]["record_count"] == 2
+
+
+def test_execute_analysis_run_from_energy_upload_skips_weather_without_site_location():
+    store = SaaSStore(initialize_database())
+    artifact_store = InMemoryTenantArtifactStore()
+    seed_tenant(store)
+    _store_legacy_energy_upload(store, artifact_store)
+
+    outcome = execute_analysis_run_from_energy_upload(
+        store,
+        user_id="user_1",
+        organization_id="org_1",
+        site_id="site_1",
+        energy_upload_id="upload_energy",
+        run_id="run_1",
+        report_id="report_1",
+        artifact_store=artifact_store,
+        client_config=_legacy_meter_config(),
+    )
+
+    assert [upload["category"] for upload in store.list_uploads("org_1")] == ["energy"]
+    report_artifact = json.loads(artifact_store.get_text("org_1", outcome.report.storage_key))
+    assert report_artifact["legacy_baseline"]["weather_coverage"]["hdd"]["record_count"] == 0
+    assert report_artifact["legacy_baseline"]["weather_coverage"]["cdd"]["record_count"] == 0
+
+
+def test_execute_analysis_run_from_energy_upload_tolerates_weather_fetch_failure(monkeypatch):
+    store = SaaSStore(initialize_database())
+    artifact_store = InMemoryTenantArtifactStore()
+    seed_tenant(store)
+    store.conn.execute(
+        "UPDATE sites SET location_label = ?, latitude = ?, longitude = ? WHERE id = ?",
+        ("Nowhere", 0.0, 0.0, "site_1"),
+    )
+    _store_legacy_energy_upload(store, artifact_store)
+
+    def fake_fetch(*args, **kwargs):
+        raise ValueError("boom")
+
+    monkeypatch.setattr(run_orchestration, "fetch_daily_degree_days", fake_fetch)
+
+    outcome = execute_analysis_run_from_energy_upload(
+        store,
+        user_id="user_1",
+        organization_id="org_1",
+        site_id="site_1",
+        energy_upload_id="upload_energy",
+        run_id="run_1",
+        report_id="report_1",
+        artifact_store=artifact_store,
+        client_config=_legacy_meter_config(),
+    )
+
+    assert [upload["category"] for upload in store.list_uploads("org_1")] == ["energy"]
+    assert store.list_runs("org_1", site_id="site_1")[0]["status"] == "succeeded"
+    assert outcome.report is not None
 
 
 def test_execute_analysis_run_from_upload_includes_legacy_weather_normalization():

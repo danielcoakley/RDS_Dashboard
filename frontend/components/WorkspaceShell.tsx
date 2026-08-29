@@ -5,9 +5,7 @@ import { isClerkFrontendEnabled } from "../lib/auth-config";
 import { loadWorkspaceContext } from "../lib/workspace-context";
 
 const navItems = [
-  { href: "/dashboard", label: "Analysis" },
-  { href: "/uploads", label: "Source files" },
-  { href: "/runs", label: "Run history" },
+  { href: "/dashboard", label: "Analyze" },
   { href: "/reports", label: "Reports" },
   { href: "/settings", label: "Setup" }
 ];

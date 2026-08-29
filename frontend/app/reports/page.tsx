@@ -85,11 +85,11 @@ export default async function ReportsPage() {
               <div className="dataRow">
                 <div>
                   <strong>Waiting for first report</strong>
-                  <span>Complete upload and run steps to generate report records.</span>
+                  <span>Run analysis to generate report records.</span>
                 </div>
                 <div>
-                  <Link href="/runs" className="btn btnGhost btnSm">
-                    Open runs
+                  <Link href="/dashboard" className="btn btnGhost btnSm">
+                    Open Analyze
                   </Link>
                 </div>
               </div>
