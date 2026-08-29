@@ -3,12 +3,14 @@
 import dynamic from 'next/dynamic';
 import { useAnalysis } from '@/lib/analysis';
 import { BarChart3, Loader2 } from 'lucide-react';
+import SeuDrilldown from './SeuDrilldown';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false }) as any;
 
 export default function SEUAnalysisPage() {
   const { selectedSiteId, availableYears, baselineYear, comparisonYear, bundle, status, error } = useAnalysis();
 
+  const analysis = bundle?.analysis;
   const sankey = bundle?.sankey;
   const seuSummary = bundle?.seuSummary;
   const seuMonthly = bundle?.seuMonthly;
@@ -62,6 +64,15 @@ export default function SEUAnalysisPage() {
                 style={{ width: '100%' }}
               />
             </div>
+          )}
+
+          {/* SEU Meter Drill-down */}
+          {analysis && (
+            <SeuDrilldown
+              gasMeters={analysis.gas}
+              electricityMeters={analysis.electricity}
+              comparisonYear={comparisonYear!}
+            />
           )}
 
           {seuSummary && (
