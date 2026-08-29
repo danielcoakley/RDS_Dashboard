@@ -72,7 +72,7 @@ class MeterOut(BaseModel):
     utility_type: str
     units: str
     seu_category: str
-    created_at: str
+    created_at: datetime
     reading_count: int = 0
     class Config:
         from_attributes = True
