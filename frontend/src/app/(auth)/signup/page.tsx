@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
-import { Zap, ArrowLeft } from 'lucide-react';
+import { Zap } from 'lucide-react';
+import { AuthShell } from '@/components/marketing/AuthShell';
 
 export default function SignupPage() {
   const { signup } = useAuth();
@@ -35,13 +36,9 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ink-50 px-4 py-12">
-      <div className="w-full max-w-lg">
-        <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-ink-500 hover:text-ink-900">
-          <ArrowLeft className="h-4 w-4" /> Back to home
-        </Link>
-        <div className="rounded-2xl border border-ink-100 bg-white p-8 shadow-xl">
-          <div className="mb-8 flex items-center gap-2">
+    <AuthShell maxWidth="max-w-lg">
+        <div className="rounded-2xl border border-ink-100 bg-white p-8 shadow-xl shadow-ink-900/5 sm:p-10">
+          <div className="mb-8 flex items-center gap-2 lg:hidden">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600">
               <Zap className="h-5 w-5 text-white" />
             </div>
@@ -99,7 +96,7 @@ export default function SignupPage() {
 
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button type="submit" disabled={loading}
-              className="w-full rounded-lg bg-brand-600 px-4 py-3 font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
+              className="w-full rounded-lg bg-brand-600 px-4 py-3 font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:bg-brand-700 disabled:opacity-50">
               {loading ? 'Creating account...' : 'Create account'}
             </button>
           </form>
@@ -109,7 +106,6 @@ export default function SignupPage() {
             <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">Sign in</Link>
           </p>
         </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 }

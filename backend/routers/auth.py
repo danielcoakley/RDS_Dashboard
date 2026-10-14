@@ -4,6 +4,8 @@ from models import Organization, User
 from schemas import UserCreate, UserLogin, TokenResponse, UserOut
 from auth import hash_password, verify_password, create_access_token, get_current_user
 from database import get_db
+from routers.compliance import seed_compliance
+from demo_seed import create_demo_org
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -22,6 +24,7 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)):
         password_hash=hash_password(payload.password), role="admin",
     )
     db.add(user)
+    seed_compliance(db, org.id)
     db.commit()
     db.refresh(user)
 
@@ -41,3 +44,11 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.post("/demo", response_model=TokenResponse)
+def demo(db: Session = Depends(get_db)):
+    """Create a fresh, isolated demo organization with synthetic data and log in as its user."""
+    user = create_demo_org(db)
+    token = create_access_token(user.id, user.org_id)
+    return TokenResponse(access_token=token, user=UserOut.model_validate(user))
