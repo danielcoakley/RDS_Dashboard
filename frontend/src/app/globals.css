@@ -11,6 +11,35 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* Marketing visuals */
+.mk-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  animation: mk-grid-drift 30s linear infinite;
+}
+@keyframes mk-grid-drift { to { background-position: 28px 28px; } }
+
+.mk-draw { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: mk-draw 2.2s ease-out forwards; }
+@keyframes mk-draw { to { stroke-dashoffset: 0; } }
+
+.mk-glow { animation: mk-glow 2.5s ease-in-out infinite; }
+@keyframes mk-glow { 50% { filter: drop-shadow(0 0 6px #40d18f); } }
+
+.mk-flow {
+  background: linear-gradient(90deg, transparent, #40d18f, #22d3ee, transparent);
+  background-size: 200% 100%;
+  animation: mk-flow 4s linear infinite;
+  opacity: 0.5;
+}
+@keyframes mk-flow { to { background-position: -200% 0; } }
+
+.mk-conic { background: conic-gradient(from 180deg, #40d18f, #114c33, #40d18f, #114c33, #40d18f); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-grid, .mk-draw, .mk-glow, .mk-flow { animation: none; stroke-dashoffset: 0; }
+}
+
 /* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
