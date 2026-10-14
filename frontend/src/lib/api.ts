@@ -110,4 +110,12 @@ export const api = {
   createReview: (data: any) => request('/api/energy-review', { method: 'POST', body: JSON.stringify(data) }),
   updateReview: (id: number, data: any) => request(`/api/energy-review/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteReview: (id: number) => request(`/api/energy-review/${id}`, { method: 'DELETE' }),
+
+  // Reports & internal audit
+  managementReview: (siteId: number, baselineYear: number, comparisonYear: number, elecPrice: number, gasPrice: number) =>
+    request(`/api/reports/management-review/${siteId}?baseline_year=${baselineYear}&comparison_year=${comparisonYear}&elec_price=${elecPrice}&gas_price=${gasPrice}`),
+  listFindings: () => request('/api/reports/audit-findings'),
+  createFinding: (data: any) => request('/api/reports/audit-findings', { method: 'POST', body: JSON.stringify(data) }),
+  updateFinding: (id: number, data: any) => request(`/api/reports/audit-findings/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteFinding: (id: number) => request(`/api/reports/audit-findings/${id}`, { method: 'DELETE' }),
 };

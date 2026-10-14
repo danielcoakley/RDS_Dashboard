@@ -157,3 +157,19 @@ class ComplianceItem(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="compliance_items")
+
+
+class AuditFinding(Base):
+    """Internal audit finding (ISO 50001 clause 9.2), scoped per organization."""
+    __tablename__ = "audit_findings"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    clause_ref = Column(String(20), nullable=False)
+    finding = Column(Text, nullable=False)
+    severity = Column(String(20), nullable=False, default="observation")  # major, minor, observation
+    corrective_action = Column(Text)
+    owner = Column(String(255))
+    due_date = Column(Date)
+    status = Column(String(20), default="open")  # open, in_progress, closed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
