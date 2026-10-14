@@ -9,8 +9,9 @@ Base.metadata.create_all(bind=engine)
 
 # Lightweight idempotent migrations for existing databases
 with engine.begin() as conn:
-    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS team_role VARCHAR(50)"))
-    conn.execute(text("UPDATE users SET role = 'owner' WHERE role = 'admin' OR role IS NULL"))
+    if engine.dialect.name == "postgresql":  # fresh SQLite DBs get the column from create_all
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS team_role VARCHAR(50)"))
+    conn.execute(text("UPDATE users SET role = 'owner' WHERE role = 'admin'"))
     conn.execute(text("UPDATE users SET role = 'manager' WHERE role = 'member'"))
 
 app = FastAPI(title="EnMS — ISO 50001 Energy Management Platform")

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from auth import get_current_user
+from auth import get_current_user, require_writer
 from database import get_db
 from models import AuditFinding, ComplianceItem, Objective, Organization, User
 from routers.analytics import _compute_all, _load_site_data
@@ -52,7 +52,7 @@ def list_findings(user: User = Depends(get_current_user), db: Session = Depends(
 
 
 @router.post("/audit-findings", response_model=FindingOut)
-def create_finding(payload: FindingIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_finding(payload: FindingIn, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     f = AuditFinding(org_id=user.org_id, **payload.model_dump())
     db.add(f)
     db.commit()
@@ -61,7 +61,7 @@ def create_finding(payload: FindingIn, user: User = Depends(get_current_user), d
 
 
 @router.put("/audit-findings/{fid}", response_model=FindingOut)
-def update_finding(fid: int, payload: FindingIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_finding(fid: int, payload: FindingIn, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     f = _get_finding(db, fid, user.org_id)
     for k, v in payload.model_dump().items():
         setattr(f, k, v)
@@ -71,7 +71,7 @@ def update_finding(fid: int, payload: FindingIn, user: User = Depends(get_curren
 
 
 @router.delete("/audit-findings/{fid}")
-def delete_finding(fid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_finding(fid: int, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     db.delete(_get_finding(db, fid, user.org_id))
     db.commit()
     return {"ok": True}

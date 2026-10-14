@@ -1,14 +1,82 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from models import User, Site, Meter, EnergyReading
+from typing import Optional
+from pydantic import BaseModel
+from sqlalchemy import func, text
+from models import User, Site, Meter, EnergyReading, Organization
 from schemas import SiteCreate, SiteOut, SiteDetail, MeterCreate, MeterOut
-from auth import get_current_user, require_writer
+from auth import get_current_user, require_writer, require_owner
 from audit import log_event
 from database import get_db
 from weather import geocode_address
 
 router = APIRouter(prefix="/api/sites", tags=["sites"])
+
+
+# --- Organization profile (onboarding) ---
+_cost_col_ready = False
+
+
+def _ensure_cost_column(db: Session):
+    """energy_cost_per_kwh lives on organizations; added lazily since tables are auto-created."""
+    global _cost_col_ready
+    if not _cost_col_ready:
+        db.execute(text("ALTER TABLE organizations ADD COLUMN IF NOT EXISTS energy_cost_per_kwh DOUBLE PRECISION"))
+        db.commit()
+        _cost_col_ready = True
+
+
+class OrgProfile(BaseModel):
+    name: Optional[str] = None
+    sector: Optional[str] = None
+    country: Optional[str] = None
+    energy_cost_per_kwh: Optional[float] = None
+
+
+class GeocodeRequest(BaseModel):
+    address: str
+
+
+def _profile(db: Session, org_id: int) -> dict:
+    _ensure_cost_column(db)
+    row = db.execute(text("SELECT name, sector, country, energy_cost_per_kwh FROM organizations WHERE id = :id"),
+                     {"id": org_id}).mappings().first()
+    site_count = db.query(func.count(Site.id)).filter(Site.org_id == org_id).scalar() or 0
+    return {**dict(row), "site_count": site_count}
+
+
+@router.get("/org-profile")
+def get_org_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _profile(db, user.org_id)
+
+
+@router.put("/org-profile")
+def update_org_profile(payload: OrgProfile, user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    _ensure_cost_column(db)
+    org = db.query(Organization).filter(Organization.id == user.org_id).first()
+    if payload.name:
+        org.name = payload.name
+    if payload.sector is not None:
+        org.sector = payload.sector
+    if payload.country is not None:
+        org.country = payload.country
+    db.flush()
+    if payload.energy_cost_per_kwh is not None:
+        db.execute(text("UPDATE organizations SET energy_cost_per_kwh = :c WHERE id = :id"),
+                   {"c": payload.energy_cost_per_kwh, "id": user.org_id})
+    db.commit()
+    return _profile(db, user.org_id)
+
+
+@router.post("/geocode")
+async def geocode(payload: GeocodeRequest, user: User = Depends(get_current_user)):
+    try:
+        geo = await geocode_address(payload.address)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Geocoding service unavailable")
+    if not geo:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return geo
 
 
 @router.get("", response_model=list[SiteOut])

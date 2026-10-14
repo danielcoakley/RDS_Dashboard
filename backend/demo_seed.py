@@ -84,7 +84,7 @@ def create_demo_org(db: Session) -> User:
         name="Demo Energy Manager",
         email=f"demo-{uuid.uuid4().hex}@demo.enms.app",
         password_hash=hash_password(secrets.token_urlsafe(24)),
-        role="admin",
+        role="owner",
     )
     db.add(user)
 

@@ -391,7 +391,7 @@ async def preview_upload(
     value_col: str | None = Form(None),
     meter_col: str | None = Form(None),
     meter_name: str = Form("Main Meter"),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
     db: Session = Depends(get_db),
 ):
     _org_site(db, user, site_id)
@@ -428,7 +428,7 @@ async def import_mapped(
     value_col: str = Form(...),
     meter_col: str | None = Form(None),
     meter_name: str = Form("Main Meter"),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
     db: Session = Depends(get_db),
 ):
     site = _org_site(db, user, site_id)
@@ -450,7 +450,7 @@ async def import_mapped(
 
 
 @router.post("/sample/{site_id}")
-async def load_sample_data(site_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def load_sample_data(site_id: int, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     site = _org_site(db, user, site_id)
     meters = db.query(Meter).filter(Meter.site_id == site_id).all()
     if not meters:

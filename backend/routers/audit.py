@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from models import User, AuditEvent
-from auth import get_current_user
+from auth import require_writer
 from database import get_db
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
@@ -41,14 +41,14 @@ def list_events(
     action: Optional[str] = None, entity_type: Optional[str] = None, user_id: Optional[int] = None,
     start: Optional[date] = None, end: Optional[date] = None,
     limit: int = Query(200, le=1000), offset: int = 0,
-    user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    user: User = Depends(require_writer), db: Session = Depends(get_db),
 ):
     q = _filtered(db, user, action, entity_type, user_id, start, end)
     return {"total": q.count(), "events": [_out(e) for e in q.offset(offset).limit(limit).all()]}
 
 
 @router.get("/actions")
-def list_actions(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_actions(user: User = Depends(require_writer), db: Session = Depends(get_db)):
     rows = db.query(AuditEvent.action).filter(AuditEvent.org_id == user.org_id).distinct().all()
     return sorted(r[0] for r in rows)
 
@@ -57,7 +57,7 @@ def list_actions(user: User = Depends(get_current_user), db: Session = Depends(g
 def export_csv(
     action: Optional[str] = None, entity_type: Optional[str] = None, user_id: Optional[int] = None,
     start: Optional[date] = None, end: Optional[date] = None,
-    user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    user: User = Depends(require_writer), db: Session = Depends(get_db),
 ):
     buf = io.StringIO()
     w = csv.writer(buf)

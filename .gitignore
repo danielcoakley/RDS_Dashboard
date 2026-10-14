@@ -6,3 +6,10 @@ EIDW_CDD_15.5C.csv
 /Data
 /dist
 *.pyc
+
+# build artefacts
+node_modules/
+.next/
+*.tsbuildinfo
+*.db
+__pycache__/
