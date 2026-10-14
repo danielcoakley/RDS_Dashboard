@@ -8,7 +8,7 @@ import { useAnalysis } from '@/lib/analysis';
 import { isDemoUser } from '@/lib/api';
 import {
   Zap, LayoutDashboard, Building2, BarChart3, Workflow,
-  Target, ShieldCheck, LogOut, LineChart, CheckCircle2, Loader2, AlertCircle,
+  Target, ShieldCheck, LogOut, LineChart, CheckCircle2, Loader2, AlertCircle, FileText,
   Menu, X, Sparkles, ArrowRight,
 } from 'lucide-react';
 
@@ -20,6 +20,7 @@ const navItems = [
   { href: '/energy-review', label: 'Energy Review', icon: Workflow },
   { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/compliance', label: 'Compliance', icon: ShieldCheck },
+  { href: '/reports', label: 'Reports & Audit', icon: FileText },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
