@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from models import User, Site, Meter, EnergyReading, WeatherData, DataUpload
 from schemas import WeatherStatus, DataUploadOut, DataSummary
-from auth import get_current_user
+from auth import get_current_user, require_writer
+from audit import log_event
 from database import get_db
 from weather import fetch_weather_for_site
 
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 async def upload_energy_data(
     site_id: int,
     file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
     db: Session = Depends(get_db),
 ):
     site = db.query(Site).filter(Site.id == site_id, Site.org_id == user.org_id).first()
@@ -163,6 +164,8 @@ async def upload_energy_data(
     )
     db.add(upload)
     db.commit()
+    log_event(db, user, "data.uploaded", "data_upload", upload.id,
+              {"site_id": site_id, "filename": upload.filename, "kind": "energy", "records": readings_added})
 
     # Auto-fetch weather data for the date range of uploaded readings
     if site.latitude is not None and site.longitude is not None:
@@ -183,7 +186,7 @@ async def upload_energy_data(
 
 
 @router.post("/weather/{site_id}/fetch")
-async def refresh_weather(site_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def refresh_weather(site_id: int, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     site = db.query(Site).filter(Site.id == site_id, Site.org_id == user.org_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
@@ -216,7 +219,7 @@ def weather_status(site_id: int, user: User = Depends(get_current_user), db: Ses
 async def upload_seu_mapping(
     site_id: int,
     file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
     db: Session = Depends(get_db),
 ):
     """Upload a SEU mapping CSV (Meter, SEU_Category) and apply it to existing meters."""
@@ -272,6 +275,8 @@ async def upload_seu_mapping(
     )
     db.add(upload)
     db.commit()
+    log_event(db, user, "data.uploaded", "data_upload", upload.id,
+              {"site_id": site_id, "filename": upload.filename, "kind": "seu_mapping", "records": updated})
 
     return {
         "updated": updated,

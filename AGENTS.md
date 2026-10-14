@@ -47,6 +47,13 @@ docker compose -f docker-compose.base44.yml up -d
 - Create account via `/signup`, then navigate to `/dashboard`
 - Create a site, upload CSV data, fetch weather, run baseline analysis
 
+## Roles, team & audit log
+- Roles: `owner`, `manager`, `viewer` (legacy `admin`→owner, `member`→manager migrated on backend startup in `main.py`; no Alembic — add idempotent `ALTER ... IF NOT EXISTS` there for new columns).
+- Every write endpoint must use `Depends(require_writer)` (or `require_owner`) from `auth.py` — viewers get 403.
+- Record changes with `audit.log_event(db, user, action, entity_type, entity_id, details)`.
+- `routers/team.py`: members, invites (token + 7-day expiry, link shown in UI since email isn't configured), organization; public `/api/team/invites/accept/{token}`. Frontend: `/settings`, `/invite/[token]`.
+- Build check: `npx tsc --noEmit` and `next build` in the frontend container (copy to /tmp first so the dev `.next` cache isn't clobbered).
+
 ## Known issues / notes
 - `bcrypt` must be pinned to 4.0.1 (passlib + bcrypt 4.1+ compatibility bug)
 - Plotly charts loaded via `next/dynamic` (ssr:false) to avoid SSR issues

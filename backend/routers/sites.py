@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from models import User, Site, Meter, EnergyReading
 from schemas import SiteCreate, SiteOut, SiteDetail, MeterCreate, MeterOut
-from auth import get_current_user
+from auth import get_current_user, require_writer
+from audit import log_event
 from database import get_db
 from weather import geocode_address
 
@@ -24,7 +25,7 @@ def list_sites(user: User = Depends(get_current_user), db: Session = Depends(get
 
 
 @router.post("", response_model=SiteOut)
-async def create_site(payload: SiteCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def create_site(payload: SiteCreate, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     lat, lon, tz = payload.latitude, payload.longitude, payload.timezone
 
     # Auto-geocode if address provided but no coordinates
@@ -64,7 +65,7 @@ def get_site(site_id: int, user: User = Depends(get_current_user), db: Session =
 
 
 @router.delete("/{site_id}")
-def delete_site(site_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_site(site_id: int, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     site = db.query(Site).filter(Site.id == site_id, Site.org_id == user.org_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
@@ -92,7 +93,7 @@ def list_meters(site_id: int, user: User = Depends(get_current_user), db: Sessio
 
 
 @router.post("/{site_id}/meters", response_model=MeterOut)
-def create_meter(site_id: int, payload: MeterCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_meter(site_id: int, payload: MeterCreate, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     site = db.query(Site).filter(Site.id == site_id, Site.org_id == user.org_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
@@ -110,8 +111,10 @@ def create_meter(site_id: int, payload: MeterCreate, user: User = Depends(get_cu
 
 
 @router.delete("/{site_id}/meters/{meter_id}")
-def delete_meter(site_id: int, meter_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    meter = db.query(Meter).filter(Meter.id == meter_id, Meter.site_id == site_id).first()
+def delete_meter(site_id: int, meter_id: int, user: User = Depends(require_writer), db: Session = Depends(get_db)):
+    meter = db.query(Meter).join(Site).filter(
+        Meter.id == meter_id, Meter.site_id == site_id, Site.org_id == user.org_id,
+    ).first()
     if not meter:
         raise HTTPException(status_code=404, detail="Meter not found")
     db.delete(meter)

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models import User, ComplianceItem
 from schemas import ComplianceItemOut, ComplianceUpdate
-from auth import get_current_user
+from auth import get_current_user, require_writer
+from audit import log_event
 from database import get_db
 
 router = APIRouter(prefix="/api/compliance", tags=["compliance"])
@@ -61,7 +62,7 @@ def list_compliance(user: User = Depends(get_current_user), db: Session = Depend
 
 
 @router.put("/{clause_ref}")
-def update_compliance(clause_ref: str, payload: ComplianceUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_compliance(clause_ref: str, payload: ComplianceUpdate, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     item = db.query(ComplianceItem).filter(
         ComplianceItem.org_id == user.org_id,
         ComplianceItem.clause_ref == clause_ref,
@@ -69,6 +70,7 @@ def update_compliance(clause_ref: str, payload: ComplianceUpdate, user: User = D
 
     title = next((c["clause_title"] for c in ISO_50001_CLAUSES if c["clause_ref"] == clause_ref), clause_ref)
 
+    old_status = item.status if item else None
     if item:
         item.status = payload.status
         item.evidence = payload.evidence
@@ -81,6 +83,9 @@ def update_compliance(clause_ref: str, payload: ComplianceUpdate, user: User = D
         db.add(item)
     db.commit()
     db.refresh(item)
+    if old_status != payload.status:
+        log_event(db, user, "compliance.status_changed", "compliance_item", clause_ref,
+                  {"clause_title": title, "from": old_status, "to": payload.status})
     return {"ok": True, "id": item.id}
 
 

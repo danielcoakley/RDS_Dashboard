@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useAnalysis } from '@/lib/analysis';
 import {
   Zap, LayoutDashboard, Building2, BarChart3, Workflow,
-  Target, ShieldCheck, LogOut, LineChart, CheckCircle2, Loader2, AlertCircle,
+  Target, ShieldCheck, Settings, LogOut, LineChart, CheckCircle2, Loader2, AlertCircle,
 } from 'lucide-react';
 
 const navItems = [
@@ -18,6 +18,7 @@ const navItems = [
   { href: '/energy-review', label: 'Energy Review', icon: Workflow },
   { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/compliance', label: 'Compliance', icon: ShieldCheck },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -132,6 +133,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="mb-2 rounded-lg bg-ink-50 px-3 py-2">
             <p className="text-sm font-medium text-ink-900">{user.name}</p>
             <p className="truncate text-xs text-ink-400">{user.email}</p>
+            <p className="mt-0.5 text-[11px] font-medium capitalize text-brand-700">{user.role}</p>
           </div>
           <button
             onClick={logout}

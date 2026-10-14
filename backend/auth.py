@@ -50,3 +50,21 @@ def get_current_user(
     if user is None or user.org_id != org_id:
         raise credentials_exc
     return user
+
+
+ROLES = ("owner", "manager", "viewer")
+TEAM_ROLES = ("top_management", "energy_manager", "energy_team_member")
+
+
+def require_role(*roles: str):
+    """Dependency factory: 403 unless the current user has one of `roles`."""
+    def dep(user: User = Depends(get_current_user)) -> User:
+        if user.role not in roles:
+            raise HTTPException(status_code=403, detail="You do not have permission to perform this action")
+        return user
+    return dep
+
+
+# Any data write: owners and managers. Viewers are read-only.
+require_writer = require_role("owner", "manager")
+require_owner = require_role("owner")

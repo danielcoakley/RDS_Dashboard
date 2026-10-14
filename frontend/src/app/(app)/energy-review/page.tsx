@@ -146,17 +146,17 @@ export default function EnergyReviewPage() {
           </div>
 
           <div className="space-y-4">
-            <ReviewField label="Energy Sources" value={editing.review_data.energy_sources || ''} onChange={(v) => update('energy_sources', v)}
+            <ReviewField label="Energy Sources" value={editing.review_data.energy_sources || ''} onChange={(v: string) => update('energy_sources', v)}
               placeholder="Identify all energy sources (natural gas, electricity, etc.) and their proportions..." />
-            <ReviewField label="Significant Energy Uses (SEUs)" value={editing.review_data.significant_uses || ''} onChange={(v) => update('significant_uses', v)}
+            <ReviewField label="Significant Energy Uses (SEUs)" value={editing.review_data.significant_uses || ''} onChange={(v: string) => update('significant_uses', v)}
               placeholder="List SEUs that account for major consumption (boilers, HVAC, lighting, etc.)..." />
-            <ReviewField label="Current Energy Performance" value={editing.review_data.current_performance || ''} onChange={(v) => update('current_performance', v)}
+            <ReviewField label="Current Energy Performance" value={editing.review_data.current_performance || ''} onChange={(v: string) => update('current_performance', v)}
               placeholder="Describe current energy performance levels and EnPIs..." />
-            <ReviewField label="Influencing Variables" value={editing.review_data.influencing_variables || ''} onChange={(v) => update('influencing_variables', v)}
+            <ReviewField label="Influencing Variables" value={editing.review_data.influencing_variables || ''} onChange={(v: string) => update('influencing_variables', v)}
               placeholder="Weather (HDD/CDD), production volume, occupancy, operating hours..." />
-            <ReviewField label="Consumption Patterns" value={editing.review_data.consumption_patterns || ''} onChange={(v) => update('consumption_patterns', v)}
+            <ReviewField label="Consumption Patterns" value={editing.review_data.consumption_patterns || ''} onChange={(v: string) => update('consumption_patterns', v)}
               placeholder="Describe consumption patterns and trends observed..." />
-            <ReviewField label="Improvement Opportunities" value={editing.review_data.opportunities || ''} onChange={(v) => update('opportunities', v)}
+            <ReviewField label="Improvement Opportunities" value={editing.review_data.opportunities || ''} onChange={(v: string) => update('opportunities', v)}
               placeholder="Identify potential energy saving opportunities and recommendations..." />
           </div>
 

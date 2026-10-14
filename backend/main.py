@@ -1,10 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from database import engine, Base
-from routers import auth, sites, data, analytics, objectives, compliance, energy_review
+from routers import auth, sites, data, analytics, objectives, compliance, energy_review, team, audit
 
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
+
+# Lightweight idempotent migrations for existing databases
+with engine.begin() as conn:
+    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS team_role VARCHAR(50)"))
+    conn.execute(text("UPDATE users SET role = 'owner' WHERE role = 'admin' OR role IS NULL"))
+    conn.execute(text("UPDATE users SET role = 'manager' WHERE role = 'member'"))
 
 app = FastAPI(title="EnMS — ISO 50001 Energy Management Platform")
 
@@ -24,6 +31,8 @@ app.include_router(analytics.router)
 app.include_router(objectives.router)
 app.include_router(compliance.router)
 app.include_router(energy_review.router)
+app.include_router(team.router)
+app.include_router(audit.router)
 
 
 @app.get("/api/health")

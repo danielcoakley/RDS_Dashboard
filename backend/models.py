@@ -30,7 +30,8 @@ class User(Base):
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(50), default="admin")  # admin, member
+    role = Column(String(50), default="owner")  # owner, manager, viewer
+    team_role = Column(String(50))  # ISO 50001 5.3 label: top_management, energy_manager, energy_team_member
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="users")
@@ -157,3 +158,31 @@ class ComplianceItem(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="compliance_items")
+
+
+class Invite(Base):
+    __tablename__ = "invites"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    email = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="viewer")
+    team_role = Column(String(50))
+    token = Column(String(100), unique=True, nullable=False, index=True)
+    invited_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    accepted_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuditEvent(Base):
+    """ISO 50001 7.5 documented information — who did what, when."""
+    __tablename__ = "audit_events"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_email = Column(String(255))  # kept so history survives member removal
+    action = Column(String(100), nullable=False, index=True)
+    entity_type = Column(String(100))
+    entity_id = Column(String(100))
+    details = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
