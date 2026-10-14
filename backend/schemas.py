@@ -138,6 +138,7 @@ class ObjectiveUpdate(BaseModel):
     current_value: Optional[float] = None
     deadline: Optional[date] = None
     status: Optional[str] = None
+    site_id: Optional[int] = None
 
 
 # --- Compliance ---

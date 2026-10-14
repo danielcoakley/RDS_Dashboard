@@ -47,6 +47,11 @@ docker compose -f docker-compose.base44.yml up -d
 - Create account via `/signup`, then navigate to `/dashboard`
 - Create a site, upload CSV data, fetch weather, run baseline analysis
 
+## Demo workspace & compliance
+- `POST /api/auth/demo` creates a brand-new isolated org per call (`demo_seed.py`, offline synthetic Cork weather + 730 days of readings, year two ~6% lower). Frontend route `/demo` calls it and lands on `/dashboard`. Demo users have emails ending `@demo.enms.app` (triggers the sidebar banner).
+- ISO 50001 clause catalogue lives in `iso_clauses.py`; signup seeds all 26 clauses. `GET /api/compliance/readiness` weights complete=1, in_progress=0.5.
+- Check a production build without touching the dev `.next` volume: copy `frontend` to `/tmp` inside the frontend container, symlink `node_modules`, run `npx next build`.
+
 ## Known issues / notes
 - `bcrypt` must be pinned to 4.0.1 (passlib + bcrypt 4.1+ compatibility bug)
 - Plotly charts loaded via `next/dynamic` (ssr:false) to avoid SSR issues

@@ -30,7 +30,7 @@ export function setUser(user: any) {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -51,6 +51,7 @@ export const api = {
   // Auth
   signup: (data: any) => request('/api/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: any) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  demo: () => request<any>('/api/auth/demo', { method: 'POST' }),
   me: () => request('/api/auth/me'),
 
   // Sites
@@ -104,6 +105,7 @@ export const api = {
   listCompliance: () => request('/api/compliance'),
   updateCompliance: (clauseRef: string, data: any) => request(`/api/compliance/${clauseRef}`, { method: 'PUT', body: JSON.stringify(data) }),
   complianceScore: () => request('/api/compliance/score'),
+  complianceReadiness: () => request<any>('/api/compliance/readiness'),
 
   // Energy Review
   listReviews: (siteId: number) => request(`/api/energy-review/${siteId}`),

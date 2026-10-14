@@ -3,16 +3,19 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import ReadinessCard from '@/components/ReadinessCard';
 import { Building2, ShieldCheck, Zap, ArrowRight, Plus, BarChart3 } from 'lucide-react';
 
 export default function DashboardPage() {
   const [sites, setSites] = useState<any[]>([]);
   const [score, setScore] = useState<any>(null);
+  const [readiness, setReadiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.listSites(), api.complianceScore().catch(() => null)])
-      .then(([s, sc]) => {
+    Promise.all([api.listSites(), api.complianceScore().catch(() => null), api.complianceReadiness().catch(() => null)])
+      .then(([s, sc, rd]) => {
+        setReadiness(rd);
         setSites(s);
         setScore(sc);
       })
@@ -25,7 +28,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Dashboard</h1>
           <p className="text-sm text-ink-500">Overview of your energy management performance</p>
@@ -34,6 +37,8 @@ export default function DashboardPage() {
           <Plus className="h-4 w-4" /> Add Site
         </Link>
       </div>
+
+      {readiness && <ReadinessCard data={readiness} />}
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

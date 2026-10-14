@@ -17,3 +17,16 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Audit evidence export (compliance page) */
+.print-only { display: none; }
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .app-main { padding-left: 0 !important; }
+  .print-area * { box-shadow: none !important; }
+  .print-area .evidence { white-space: normal !important; overflow: visible !important; }
+  .avoid-break { break-inside: avoid; }
+}

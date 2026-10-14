@@ -7,34 +7,10 @@ from database import get_db
 
 router = APIRouter(prefix="/api/compliance", tags=["compliance"])
 
-ISO_50001_CLAUSES = [
-    {"clause_ref": "4.1", "clause_title": "Understanding the organization and its context"},
-    {"clause_ref": "4.2", "clause_title": "Understanding needs of interested parties"},
-    {"clause_ref": "4.3", "clause_title": "Determining scope of the EnMS"},
-    {"clause_ref": "4.4", "clause_title": "Energy management system"},
-    {"clause_ref": "5.1", "clause_title": "Leadership and commitment"},
-    {"clause_ref": "5.2", "clause_title": "Energy policy"},
-    {"clause_ref": "5.3", "clause_title": "Organization roles, responsibilities and authorities"},
-    {"clause_ref": "6.1", "clause_title": "Actions to address risks and opportunities"},
-    {"clause_ref": "6.2", "clause_title": "Objectives, energy targets and planning"},
-    {"clause_ref": "6.3", "clause_title": "Energy review"},
-    {"clause_ref": "6.4", "clause_title": "Energy performance indicators (EnPI)"},
-    {"clause_ref": "6.5", "clause_title": "Energy baseline"},
-    {"clause_ref": "6.6", "clause_title": "Planning for collection of energy data"},
-    {"clause_ref": "7.1", "clause_title": "Resources"},
-    {"clause_ref": "7.2", "clause_title": "Competence"},
-    {"clause_ref": "7.3", "clause_title": "Awareness"},
-    {"clause_ref": "7.4", "clause_title": "Communication"},
-    {"clause_ref": "7.5", "clause_title": "Documented information"},
-    {"clause_ref": "8.1", "clause_title": "Operational planning and control"},
-    {"clause_ref": "8.2", "clause_title": "Design"},
-    {"clause_ref": "8.3", "clause_title": "Procurement"},
-    {"clause_ref": "9.1", "clause_title": "Monitoring, measurement, analysis and evaluation"},
-    {"clause_ref": "9.2", "clause_title": "Internal audit"},
-    {"clause_ref": "9.3", "clause_title": "Management review"},
-    {"clause_ref": "10.1", "clause_title": "Nonconformity and corrective action"},
-    {"clause_ref": "10.2", "clause_title": "Continual improvement"},
-]
+STATUSES = {"not_started", "in_progress", "complete"}
+WEIGHT = {"complete": 1.0, "in_progress": 0.5}
+
+from iso_clauses import ISO_50001_CLAUSES, ISO_SECTIONS, CLAUSE_TITLES
 
 
 @router.get("", response_model=list[ComplianceItemOut])
@@ -67,7 +43,11 @@ def update_compliance(clause_ref: str, payload: ComplianceUpdate, user: User = D
         ComplianceItem.clause_ref == clause_ref,
     ).first()
 
-    title = next((c["clause_title"] for c in ISO_50001_CLAUSES if c["clause_ref"] == clause_ref), clause_ref)
+    if clause_ref not in CLAUSE_TITLES:
+        raise HTTPException(status_code=404, detail="Unknown clause")
+    if payload.status not in STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    title = CLAUSE_TITLES[clause_ref]
 
     if item:
         item.status = payload.status
@@ -96,4 +76,32 @@ def compliance_score(user: User = Depends(get_current_user), db: Session = Depen
         "in_progress": in_progress,
         "not_started": total - complete - in_progress,
         "score": round(100 * complete / total, 0) if total else 0,
+    }
+
+
+@router.get("/readiness")
+def compliance_readiness(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    items = db.query(ComplianceItem).filter(ComplianceItem.org_id == user.org_id).all()
+    status_by_ref = {i.clause_ref: i.status for i in items}
+    clauses = [{**c, "status": status_by_ref.get(c["clause_ref"], "not_started")} for c in ISO_50001_CLAUSES]
+
+    def score(cs):
+        return round(100 * sum(WEIGHT.get(c["status"], 0) for c in cs) / len(cs)) if cs else 0
+
+    by_section = []
+    for sec, title in ISO_SECTIONS.items():
+        cs = [c for c in clauses if c["clause_ref"].split(".")[0] == sec]
+        by_section.append({
+            "section": sec, "title": title, "score": score(cs), "total": len(cs),
+            "complete": sum(c["status"] == "complete" for c in cs),
+        })
+    counts = {s: sum(c["status"] == s for c in clauses) for s in ("complete", "in_progress", "not_started")}
+    # In-progress first (closest to done), then not started, in clause order
+    incomplete = [c for c in clauses if c["status"] == "in_progress"] + [c for c in clauses if c["status"] == "not_started"]
+    return {
+        "score": score(clauses),
+        "total": len(clauses),
+        "counts": counts,
+        "by_section": by_section,
+        "next_actions": incomplete[:5],
     }

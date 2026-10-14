@@ -111,7 +111,9 @@ def create_meter(site_id: int, payload: MeterCreate, user: User = Depends(get_cu
 
 @router.delete("/{site_id}/meters/{meter_id}")
 def delete_meter(site_id: int, meter_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    meter = db.query(Meter).filter(Meter.id == meter_id, Meter.site_id == site_id).first()
+    meter = db.query(Meter).join(Site).filter(
+        Meter.id == meter_id, Meter.site_id == site_id, Site.org_id == user.org_id
+    ).first()
     if not meter:
         raise HTTPException(status_code=404, detail="Meter not found")
     db.delete(meter)
