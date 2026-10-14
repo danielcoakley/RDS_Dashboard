@@ -1,0 +1,32 @@
+.a4-page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 20mm 18mm;
+  margin: 0 auto 24px;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #0f172a;
+  position: relative;
+}
+.a4-page h2 { font-size: 18pt; font-weight: 600; border-bottom: 2px solid #059669; padding-bottom: 6px; margin: 0 0 14px; }
+.a4-page h3 { font-size: 12pt; font-weight: 600; margin: 18px 0 8px; }
+.a4-page p, .a4-page td, .a4-page th, .a4-page li { font-size: 10pt; line-height: 1.5; }
+.a4-page table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.a4-page th { text-align: left; background: #f1f5f9; font-weight: 600; }
+.a4-page th, .a4-page td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
+.a4-page .num { text-align: right; font-variant-numeric: tabular-nums; }
+.a4-footer { position: absolute; bottom: 10mm; left: 18mm; right: 18mm; display: flex; justify-content: space-between; font-size: 8pt; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 4px; }
+.a4-sans { font-family: ui-sans-serif, system-ui, sans-serif; }
+
+@page { size: A4; margin: 0; }
+@media print {
+  body { background: #fff !important; }
+  aside, .no-print { display: none !important; }
+  main { padding-left: 0 !important; }
+  main > div { max-width: none !important; padding: 0 !important; margin: 0 !important; }
+  .a4-page { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  .a4-page:last-child { page-break-after: auto; break-after: auto; }
+  .a4-page tr { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
