@@ -1,11 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models import User, Objective
+from models import User, Objective, Site
 from schemas import ObjectiveCreate, ObjectiveOut, ObjectiveUpdate
 from auth import get_current_user
 from database import get_db
 
 router = APIRouter(prefix="/api/objectives", tags=["objectives"])
+
+
+def _check_site(db: Session, site_id, org_id: int):
+    """Reject site ids that do not belong to the caller's organization."""
+    if site_id is None:
+        return
+    if not db.query(Site).filter(Site.id == site_id, Site.org_id == org_id).first():
+        raise HTTPException(status_code=404, detail="Site not found")
 
 
 @router.get("", response_model=list[ObjectiveOut])
@@ -20,6 +28,7 @@ def list_objectives(user: User = Depends(get_current_user), db: Session = Depend
 
 @router.post("", response_model=ObjectiveOut)
 def create_objective(payload: ObjectiveCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _check_site(db, payload.site_id, user.org_id)
     obj = Objective(
         org_id=user.org_id,
         site_id=payload.site_id,
@@ -43,7 +52,10 @@ def update_objective(obj_id: int, payload: ObjectiveUpdate, user: User = Depends
     obj = db.query(Objective).filter(Objective.id == obj_id, Objective.org_id == user.org_id).first()
     if not obj:
         raise HTTPException(status_code=404, detail="Objective not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    if "site_id" in updates:
+        _check_site(db, updates["site_id"], user.org_id)
+    for field, value in updates.items():
         setattr(obj, field, value)
     db.commit()
     db.refresh(obj)
