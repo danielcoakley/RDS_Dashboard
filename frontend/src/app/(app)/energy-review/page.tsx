@@ -2,186 +2,160 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { Workflow, Plus, Save, Trash2 } from 'lucide-react';
+import { useAnalysis } from '@/lib/analysis';
+import { Workflow, Save, Trash2, Loader2, Eye, RefreshCw } from 'lucide-react';
+import ReviewReport from './ReviewReport';
+
+async function generateReview(siteId: number, baselineYear: number, reportingYear: number) {
+  const token = localStorage.getItem('enms_token');
+  const res = await fetch(
+    `/api/energy-review/generate/${siteId}?baseline_year=${baselineYear}&reporting_year=${reportingYear}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  );
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || 'Failed to generate review');
+  return res.json();
+}
 
 export default function EnergyReviewPage() {
-  const [sites, setSites] = useState<any[]>([]);
-  const [selectedSite, setSelectedSite] = useState<number | null>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [editing, setEditing] = useState<any>(null);
+  const { sites, selectedSiteId, baselineYear, comparisonYear } = useAnalysis();
+  const [review, setReview] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [snapshots, setSnapshots] = useState<any[]>([]);
+  const [viewing, setViewing] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  useEffect(() => { api.listSites().then(setSites); }, []);
+  const siteName = sites.find(s => s.id === selectedSiteId)?.name;
+  const ready = selectedSiteId && baselineYear && comparisonYear && baselineYear !== comparisonYear;
 
-  useEffect(() => {
-    if (selectedSite) {
-      api.listReviews(selectedSite).then(setReviews).catch(() => setReviews([]));
-      setEditing(null);
-    }
-  }, [selectedSite]);
-
-  const startNew = () => {
-    setEditing({
-      review_data: {
-        energy_sources: '',
-        significant_uses: '',
-        current_performance: '',
-        influencing_variables: '',
-        consumption_patterns: '',
-        opportunities: '',
-      },
-      period_start: '',
-      period_end: '',
-    });
+  const loadSnapshots = () => {
+    if (selectedSiteId) api.listReviews(selectedSiteId).then((r: any) => setSnapshots(r)).catch(() => setSnapshots([]));
   };
 
-  const update = (key: string, val: string) => {
-    setEditing((prev: any) => ({
-      ...prev,
-      review_data: { ...prev.review_data, [key]: val },
-    }));
+  const run = () => {
+    if (!ready) return;
+    setLoading(true); setError(''); setSaved(false); setViewing(null);
+    generateReview(selectedSiteId!, baselineYear!, comparisonYear!)
+      .then(setReview)
+      .catch((e) => { setError(e.message); setReview(null); })
+      .finally(() => setLoading(false));
   };
 
-  const save = async () => {
+  useEffect(() => { setReview(null); setSnapshots([]); loadSnapshots(); run(); /* eslint-disable-next-line */ }, [selectedSiteId, baselineYear, comparisonYear]);
+
+  const saveSnapshot = async () => {
+    if (!review) return;
     setSaving(true);
     try {
-      const payload = {
-        site_id: selectedSite,
-        review_data: editing.review_data,
-        period_start: editing.period_start || null,
-        period_end: editing.period_end || null,
-      };
-      if (editing.id) {
-        await api.updateReview(editing.id, payload);
-      } else {
-        await api.createReview(payload);
-      }
-      await api.listReviews(selectedSite!).then(setReviews);
-      setEditing(null);
-    } catch (err: any) {
-      alert(err.message);
+      await api.createReview({
+        site_id: selectedSiteId,
+        review_data: { type: 'auto', generated_at: new Date().toISOString(), ...review },
+        period_start: `${review.reporting_year}-01-01`,
+        period_end: `${review.reporting_year}-12-31`,
+      });
+      setSaved(true);
+      loadSnapshots();
+    } catch (e: any) {
+      alert(e.message);
     } finally {
       setSaving(false);
     }
   };
 
   const del = async (id: number) => {
-    if (!confirm('Delete this energy review?')) return;
+    if (!confirm('Delete this review snapshot?')) return;
     await api.deleteReview(id);
-    await api.listReviews(selectedSite!).then(setReviews);
+    if (viewing?.id === id) setViewing(null);
+    loadSnapshots();
   };
+
+  const shown = viewing ? viewing.review_data : review;
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold text-ink-900">Energy Review</h1>
-      <p className="mb-8 text-sm text-ink-500">Document your ISO 50001 §6.3 energy review — identify energy sources, SEUs, and performance</p>
-
-      <div className="mb-6 flex flex-wrap items-end gap-4">
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-ink-700">Site</label>
-          <select value={selectedSite || ''} onChange={(e) => setSelectedSite(Number(e.target.value))}
-            className="rounded-lg border border-ink-200 px-4 py-2.5 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100">
-            <option value="">Select site...</option>
-            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <h1 className="mb-2 text-2xl font-bold text-ink-900">Energy Review</h1>
+          <p className="text-sm text-ink-500">
+            Auto-generated ISO 50001 §6.3 energy review with SEU identification, EnPIs (§6.4) and baseline comparison (§6.5).
+            Select a site &amp; years in the sidebar.
+          </p>
+          {ready && (
+            <p className="mt-2 text-sm font-medium text-ink-700">
+              {siteName} · Baseline {baselineYear} → Reporting {comparisonYear}
+              {viewing && <span className="ml-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">Snapshot from {viewing.created_at.split('T')[0]}</span>}
+            </p>
+          )}
         </div>
-        {selectedSite && !editing && (
-          <button onClick={startNew}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-            <Plus className="h-4 w-4" /> New Energy Review
-          </button>
+        {ready && (
+          <div className="flex gap-2">
+            {viewing ? (
+              <button onClick={() => setViewing(null)}
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink-700 hover:bg-ink-50">
+                <RefreshCw className="h-4 w-4" /> Back to live review
+              </button>
+            ) : (
+              <button onClick={saveSnapshot} disabled={!review || saving || saved}
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
+                <Save className="h-4 w-4" /> {saving ? 'Saving...' : saved ? 'Snapshot saved' : 'Save review snapshot'}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      {selectedSite && !editing && (
-        <div className="space-y-4">
-          {reviews.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center">
-              <Workflow className="mx-auto mb-3 h-10 w-10 text-ink-300" />
-              <p className="text-ink-500">No energy reviews yet. Create one to document your ISO 50001 §6.3 analysis.</p>
-            </div>
-          ) : (
-            reviews.map((r) => (
-              <div key={r.id} className="rounded-xl border border-ink-100 bg-white p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-ink-900">
-                      {r.period_start ? `${r.period_start} – ${r.period_end || 'present'}` : 'Energy Review'}
-                    </p>
-                    <p className="text-xs text-ink-400">Created {r.created_at.split('T')[0]}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setEditing({ ...r })} className="text-sm font-medium text-brand-600 hover:text-brand-700">Edit</button>
-                    <button onClick={() => del(r.id)} className="text-ink-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {Object.entries(r.review_data).map(([key, val]: any) => val && (
-                    <div key={key} className="rounded-lg bg-ink-50 p-3">
-                      <p className="text-xs font-medium uppercase text-ink-400">{key.replace(/_/g, ' ')}</p>
-                      <p className="mt-1 text-sm text-ink-700">{val}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
+      {!ready && (
+        <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center">
+          <Workflow className="mx-auto mb-3 h-10 w-10 text-ink-300" />
+          <p className="text-ink-500">Select a site with at least two years of data, plus baseline and reporting years, in the sidebar.</p>
         </div>
       )}
 
-      {editing && selectedSite && (
-        <div className="rounded-xl border border-ink-100 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-ink-900">{editing.id ? 'Edit Energy Review' : 'New Energy Review'}</h2>
-          <div className="mb-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700">Period start</label>
-              <input type="date" value={editing.period_start || ''} onChange={(e) => setEditing({ ...editing, period_start: e.target.value })}
-                className="w-full rounded-lg border border-ink-200 px-4 py-2.5" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700">Period end</label>
-              <input type="date" value={editing.period_end || ''} onChange={(e) => setEditing({ ...editing, period_end: e.target.value })}
-                className="w-full rounded-lg border border-ink-200 px-4 py-2.5" />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <ReviewField label="Energy Sources" value={editing.review_data.energy_sources || ''} onChange={(v) => update('energy_sources', v)}
-              placeholder="Identify all energy sources (natural gas, electricity, etc.) and their proportions..." />
-            <ReviewField label="Significant Energy Uses (SEUs)" value={editing.review_data.significant_uses || ''} onChange={(v) => update('significant_uses', v)}
-              placeholder="List SEUs that account for major consumption (boilers, HVAC, lighting, etc.)..." />
-            <ReviewField label="Current Energy Performance" value={editing.review_data.current_performance || ''} onChange={(v) => update('current_performance', v)}
-              placeholder="Describe current energy performance levels and EnPIs..." />
-            <ReviewField label="Influencing Variables" value={editing.review_data.influencing_variables || ''} onChange={(v) => update('influencing_variables', v)}
-              placeholder="Weather (HDD/CDD), production volume, occupancy, operating hours..." />
-            <ReviewField label="Consumption Patterns" value={editing.review_data.consumption_patterns || ''} onChange={(v) => update('consumption_patterns', v)}
-              placeholder="Describe consumption patterns and trends observed..." />
-            <ReviewField label="Improvement Opportunities" value={editing.review_data.opportunities || ''} onChange={(v) => update('opportunities', v)}
-              placeholder="Identify potential energy saving opportunities and recommendations..." />
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            <button onClick={save} disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
-              <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save Review'}
-            </button>
-            <button onClick={() => setEditing(null)}
-              className="rounded-lg border border-ink-200 px-6 py-2.5 font-medium text-ink-700 hover:bg-ink-50">
-              Cancel
-            </button>
-          </div>
+      {ready && loading && !viewing && (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-ink-100 bg-white p-12 text-ink-500">
+          <Loader2 className="h-5 w-5 animate-spin" /> Generating energy review...
         </div>
       )}
-    </div>
-  );
-}
 
-function ReviewField({ label, value, onChange, placeholder }: any) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-ink-700">{label}</label>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} placeholder={placeholder}
-        className="w-full rounded-lg border border-ink-200 px-4 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100" />
+      {ready && error && !viewing && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+
+      {ready && shown && !(loading && !viewing) && (
+        shown.seus?.length ? <ReviewReport review={shown} /> : (
+          <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center text-ink-500">
+            No consumption data for {comparisonYear}.
+          </div>
+        )
+      )}
+
+      {selectedSiteId && snapshots.length > 0 && (
+        <section className="mt-8 rounded-xl border border-ink-100 bg-white p-6">
+          <h2 className="mb-4 text-lg font-semibold text-ink-900">Saved review snapshots</h2>
+          <ul className="divide-y divide-ink-50">
+            {snapshots.map((r) => (
+              <li key={r.id} className="flex items-center justify-between py-3">
+                <div>
+                  <p className="font-medium text-ink-900">
+                    {r.review_data?.type === 'auto'
+                      ? `Baseline ${r.review_data.baseline_year} → Reporting ${r.review_data.reporting_year}`
+                      : r.period_start ? `${r.period_start} – ${r.period_end || 'present'}` : 'Energy Review'}
+                  </p>
+                  <p className="text-xs text-ink-400">Saved {r.created_at.split('T')[0]}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {r.review_data?.type === 'auto' && (
+                    <button onClick={() => { setViewing(r); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700">
+                      <Eye className="h-4 w-4" /> View
+                    </button>
+                  )}
+                  <button onClick={() => del(r.id)} className="text-ink-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
