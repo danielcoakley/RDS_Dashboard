@@ -81,6 +81,19 @@ export const api = {
   listUploads: (siteId: number) => request(`/api/data/uploads/${siteId}`),
   dataSummary: (siteId: number) => request(`/api/data/summary/${siteId}`),
 
+  // Onboarding / smart upload
+  getOrgProfile: () => request('/api/sites/org-profile'),
+  updateOrgProfile: (data: any) => request('/api/sites/org-profile', { method: 'PUT', body: JSON.stringify(data) }),
+  geocode: (address: string) => request('/api/sites/geocode', { method: 'POST', body: JSON.stringify({ address }) }),
+  previewUpload: (siteId: number, file: File, mapping: Record<string, string> = {}) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    Object.entries(mapping).forEach(([k, v]) => v != null && formData.append(k, v));
+    return request(`/api/data/preview/${siteId}`, { method: 'POST', body: formData });
+  },
+  loadSampleData: (siteId: number) => request(`/api/data/sample/${siteId}`, { method: 'POST' }),
+  templateUrl: `${API_URL}/api/data/template`,
+
   // Analytics
   runAnalysis: (data: any) => request('/api/analytics/analysis', { method: 'POST', body: JSON.stringify(data) }),
   analysisBundle: (siteId: number, baselineYear: number, comparisonYear: number) =>
@@ -136,4 +149,22 @@ export const DEMO_EMAIL_DOMAIN = '@demo.enms.app';
 
 export function isDemoUser(user: { email?: string } | null | undefined): boolean {
   return !!user?.email && user.email.toLowerCase().endsWith(DEMO_EMAIL_DOMAIN);
+}
+
+/** Multipart POST with upload progress (0-100). Resolves with parsed JSON. */
+export function uploadWithProgress(path: string, formData: FormData, onProgress: (pct: number) => void): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}${path}`);
+    const token = getToken();
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+    xhr.onload = () => {
+      let body: any = {};
+      try { body = JSON.parse(xhr.responseText); } catch {}
+      xhr.status < 400 ? resolve(body) : reject(new Error(body.detail || 'Request failed'));
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(formData);
+  });
 }

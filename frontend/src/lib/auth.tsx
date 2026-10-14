@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(res.access_token);
     setUser(res.user);
     setUserState(res.user);
-    router.push('/dashboard');
+    router.push('/onboarding'); // wizard redirects to /dashboard if the org already has sites
   }, [router]);
 
   /** Create a fresh seeded demo workspace and sign into it. Caller handles navigation. */
