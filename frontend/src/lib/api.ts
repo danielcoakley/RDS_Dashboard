@@ -30,7 +30,7 @@ export function setUser(user: any) {
   }
 }
 
-async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+async function rawRequest(path: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -44,7 +44,11 @@ async function request<T = any>(path: string, options: RequestInit = {}): Promis
     const detail = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(detail.detail || 'Request failed');
   }
-  return res.json();
+  return res;
+}
+
+async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+  return (await rawRequest(path, options)).json();
 }
 
 export const api = {
@@ -133,6 +137,22 @@ export const api = {
   createFinding: (data: any) => request('/api/reports/audit-findings', { method: 'POST', body: JSON.stringify(data) }),
   updateFinding: (id: number, data: any) => request(`/api/reports/audit-findings/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteFinding: (id: number) => request(`/api/reports/audit-findings/${id}`, { method: 'DELETE' }),
+
+  // Team & organization
+  getTeam: () => request('/api/team'),
+  createInvite: (data: any) => request('/api/team/invites', { method: 'POST', body: JSON.stringify(data) }),
+  revokeInvite: (id: number) => request(`/api/team/invites/${id}`, { method: 'DELETE' }),
+  updateMember: (id: number, data: any) => request(`/api/team/members/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  removeMember: (id: number) => request(`/api/team/members/${id}`, { method: 'DELETE' }),
+  getOrganization: () => request('/api/team/organization'),
+  updateOrganization: (data: any) => request('/api/team/organization', { method: 'PUT', body: JSON.stringify(data) }),
+  getInvite: (token: string) => request(`/api/team/invites/accept/${token}`),
+  acceptInvite: (token: string, data: any) => request(`/api/team/invites/accept/${token}`, { method: 'POST', body: JSON.stringify(data) }),
+
+  // Audit log
+  listAudit: (params: Record<string, string>) => request(`/api/audit?${new URLSearchParams(params)}`),
+  auditActions: () => request('/api/audit/actions'),
+  exportAudit: async (params: Record<string, string>) => (await rawRequest(`/api/audit/export?${new URLSearchParams(params)}`)).blob(),
 };
 
 export interface ComplianceReadiness {

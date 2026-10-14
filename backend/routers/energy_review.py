@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from models import User, EnergyReview, Site, Meter, EnergyReading, WeatherData
 from analytics import build_energy_review
 from schemas import EnergyReviewCreate, EnergyReviewOut
-from auth import get_current_user
+from auth import get_current_user, require_writer
+from audit import log_event
 from database import get_db
 
 router = APIRouter(prefix="/api/energy-review", tags=["energy-review"])
@@ -57,7 +58,7 @@ def list_reviews(site_id: int, user: User = Depends(get_current_user), db: Sessi
 
 
 @router.post("", response_model=EnergyReviewOut)
-def create_review(payload: EnergyReviewCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_review(payload: EnergyReviewCreate, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     site = db.query(Site).filter(Site.id == payload.site_id, Site.org_id == user.org_id).first()
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
@@ -73,7 +74,7 @@ def create_review(payload: EnergyReviewCreate, user: User = Depends(get_current_
 
 
 @router.put("/{review_id}", response_model=EnergyReviewOut)
-def update_review(review_id: int, payload: EnergyReviewCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_review(review_id: int, payload: EnergyReviewCreate, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     review = db.query(EnergyReview).filter(EnergyReview.id == review_id, EnergyReview.org_id == user.org_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Energy review not found")
@@ -86,7 +87,7 @@ def update_review(review_id: int, payload: EnergyReviewCreate, user: User = Depe
 
 
 @router.delete("/{review_id}")
-def delete_review(review_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_review(review_id: int, user: User = Depends(require_writer), db: Session = Depends(get_db)):
     review = db.query(EnergyReview).filter(EnergyReview.id == review_id, EnergyReview.org_id == user.org_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Energy review not found")

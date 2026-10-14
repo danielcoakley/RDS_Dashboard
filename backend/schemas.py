@@ -29,6 +29,7 @@ class UserOut(BaseModel):
     name: str
     email: str
     role: str
+    team_role: Optional[str] = None
     org_id: int
     class Config:
         from_attributes = True
@@ -126,7 +127,7 @@ class ObjectiveOut(BaseModel):
     deadline: Optional[date]
     status: str
     site_id: Optional[int]
-    created_at: str
+    created_at: datetime
     class Config:
         from_attributes = True
 

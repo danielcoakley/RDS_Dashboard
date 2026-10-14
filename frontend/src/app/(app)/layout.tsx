@@ -8,7 +8,7 @@ import { useAnalysis } from '@/lib/analysis';
 import { isDemoUser } from '@/lib/api';
 import {
   Zap, LayoutDashboard, Building2, BarChart3, Workflow,
-  Target, ShieldCheck, LogOut, LineChart, CheckCircle2, Loader2, AlertCircle, FileText,
+  Target, ShieldCheck, Settings, LogOut, LineChart, CheckCircle2, Loader2, AlertCircle, FileText,
   Menu, X, Sparkles, ArrowRight,
 } from 'lucide-react';
 
@@ -21,6 +21,7 @@ const navItems = [
   { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/compliance', label: 'Compliance', icon: ShieldCheck },
   { href: '/reports', label: 'Reports & Audit', icon: FileText },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -172,7 +173,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-ink-900">{user.name}</p>
-              <p className="truncate text-xs text-ink-400">{demo ? 'Demo workspace' : `${user.role} | ${user.email}`}</p>
+              <p className="truncate text-xs text-ink-400">{demo ? 'Demo workspace' : user.email}</p>
+              <p className="text-[11px] font-medium capitalize text-brand-700">{user.role}</p>
             </div>
           </div>
           <button

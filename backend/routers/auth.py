@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models import Organization, User
 from schemas import UserCreate, UserLogin, TokenResponse, UserOut
+from audit import log_event
 from auth import hash_password, verify_password, create_access_token, get_current_user
 from database import get_db
 from routers.compliance import seed_compliance
@@ -21,12 +22,13 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)):
 
     user = User(
         org_id=org.id, name=payload.name, email=payload.email,
-        password_hash=hash_password(payload.password), role="admin",
+        password_hash=hash_password(payload.password), role="owner",
     )
     db.add(user)
     seed_compliance(db, org.id)
     db.commit()
     db.refresh(user)
+    log_event(db, user, "auth.signup", "user", user.id, {"organization": org.name})
 
     token = create_access_token(user.id, user.org_id)
     return TokenResponse(access_token=token, user=UserOut.model_validate(user))
@@ -37,6 +39,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    log_event(db, user, "auth.login", "user", user.id)
     token = create_access_token(user.id, user.org_id)
     return TokenResponse(access_token=token, user=UserOut.model_validate(user))
 

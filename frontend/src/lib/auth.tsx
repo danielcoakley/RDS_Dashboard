@@ -9,6 +9,7 @@ interface AuthUser {
   name: string;
   email: string;
   role: string;
+  team_role?: string | null;
   org_id: number;
 }
 
@@ -19,6 +20,8 @@ interface AuthCtx {
   signup: (data: any) => Promise<void>;
   demoLogin: () => Promise<void>;
   logout: () => void;
+  startSession: (res: any) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx>(null!);
@@ -32,9 +35,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const existing = getUser();
     if (existing) {
       setUserState(existing);
+      // Pick up role changes made by an owner since last login
+      api.me().then((u: any) => { setUser(u); setUserState(u); }).catch(() => {});
     }
     setLoading(false);
   }, []);
+
+  const refreshUser = useCallback(async () => {
+    const u: any = await api.me();
+    setUser(u);
+    setUserState(u);
+  }, []);
+
+  const startSession = useCallback((res: any) => {
+    setToken(res.access_token);
+    setUser(res.user);
+    setUserState(res.user);
+    router.push('/dashboard');
+  }, [router]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.login({ email, password });
@@ -67,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <Ctx.Provider value={{ user, loading, login, signup, demoLogin, logout }}>
+    <Ctx.Provider value={{ user, loading, login, signup, demoLogin, logout, startSession, refreshUser }}>
       {children}
     </Ctx.Provider>
   );
