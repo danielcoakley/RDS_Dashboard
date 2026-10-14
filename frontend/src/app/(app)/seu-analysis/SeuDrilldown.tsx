@@ -162,8 +162,8 @@ export default function SeuDrilldown({ gasMeters, electricityMeters, comparisonY
                         <td className="px-4 py-2 text-right text-ink-600">{m.predicted?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                         <td className="px-4 py-2 text-right text-ink-600">{m.actual?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                         <td className="px-4 py-2 text-right">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.pct_savings > 0 ? 'bg-brand-50 text-brand-700' : m.pct_savings < 0 ? 'bg-red-50 text-red-700' : 'bg-ink-50 text-ink-500'}`}>
-                            {m.pct_savings > 0 ? '+' : ''}{m.pct_savings}%
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${(m.pct_savings ?? 0) > 0 ? 'bg-brand-50 text-brand-700' : (m.pct_savings ?? 0) < 0 ? 'bg-red-50 text-red-700' : 'bg-ink-50 text-ink-500'}`}>
+                            {(m.pct_savings ?? 0) > 0 ? '+' : ''}{m.pct_savings ?? '—'}%
                           </span>
                         </td>
                       </tr>
@@ -178,8 +178,8 @@ export default function SeuDrilldown({ gasMeters, electricityMeters, comparisonY
                         <td className="px-4 py-2 text-right text-ink-600">{m.predicted?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                         <td className="px-4 py-2 text-right text-ink-600">{m.actual?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                         <td className="px-4 py-2 text-right">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.pct_savings > 0 ? 'bg-brand-50 text-brand-700' : m.pct_savings < 0 ? 'bg-red-50 text-red-700' : 'bg-ink-50 text-ink-500'}`}>
-                            {m.pct_savings > 0 ? '+' : ''}{m.pct_savings}%
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${(m.pct_savings ?? 0) > 0 ? 'bg-brand-50 text-brand-700' : (m.pct_savings ?? 0) < 0 ? 'bg-red-50 text-red-700' : 'bg-ink-50 text-ink-500'}`}>
+                            {(m.pct_savings ?? 0) > 0 ? '+' : ''}{m.pct_savings ?? '—'}%
                           </span>
                         </td>
                       </tr>

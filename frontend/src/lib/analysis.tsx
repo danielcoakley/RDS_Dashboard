@@ -83,6 +83,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       // Only restore saved selection if the site still exists
       if (saved.siteId && s.some((site: any) => site.id === saved.siteId)) {
         setSelectedSiteId(saved.siteId);
+      } else {
+        // New user / tenant switch (e.g. demo workspace): default to the first site.
+        setSelectedSiteId(s.length > 0 ? s[0].id : null);
       }
     }).finally(() => setSitesLoading(false));
   }, [user]);

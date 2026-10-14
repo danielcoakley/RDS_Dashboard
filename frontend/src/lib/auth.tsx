@@ -17,6 +17,7 @@ interface AuthCtx {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (data: any) => Promise<void>;
+  demoLogin: () => Promise<void>;
   logout: () => void;
 }
 
@@ -51,6 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/dashboard');
   }, [router]);
 
+  /** Create a fresh seeded demo workspace and sign into it. Caller handles navigation. */
+  const demoLogin = useCallback(async () => {
+    const res: any = await api.demo();
+    setToken(res.access_token);
+    setUser(res.user);
+    setUserState(res.user);
+  }, []);
+
   const logout = useCallback(() => {
     clearToken();
     setUserState(null);
@@ -58,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <Ctx.Provider value={{ user, loading, login, signup, logout }}>
+    <Ctx.Provider value={{ user, loading, login, signup, demoLogin, logout }}>
       {children}
     </Ctx.Provider>
   );

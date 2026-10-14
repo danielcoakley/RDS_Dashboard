@@ -30,7 +30,7 @@ export function setUser(user: any) {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -51,6 +51,7 @@ export const api = {
   // Auth
   signup: (data: any) => request('/api/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: any) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  demo: () => request('/api/auth/demo', { method: 'POST' }),
   me: () => request('/api/auth/me'),
 
   // Sites
@@ -104,6 +105,7 @@ export const api = {
   listCompliance: () => request('/api/compliance'),
   updateCompliance: (clauseRef: string, data: any) => request(`/api/compliance/${clauseRef}`, { method: 'PUT', body: JSON.stringify(data) }),
   complianceScore: () => request('/api/compliance/score'),
+  complianceReadiness: () => request<ComplianceReadiness>('/api/compliance/readiness'),
 
   // Energy Review
   listReviews: (siteId: number) => request(`/api/energy-review/${siteId}`),
@@ -111,3 +113,19 @@ export const api = {
   updateReview: (id: number, data: any) => request(`/api/energy-review/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteReview: (id: number) => request(`/api/energy-review/${id}`, { method: 'DELETE' }),
 };
+
+export interface ComplianceReadiness {
+  score: number;
+  complete: number;
+  in_progress: number;
+  not_started: number;
+  total: number;
+  by_section: { section: string; title: string; score: number; complete: number; total: number }[];
+  next_actions: { clause_ref: string; clause_title: string; status: string }[];
+}
+
+export const DEMO_EMAIL_DOMAIN = '@demo.enms.app';
+
+export function isDemoUser(user: { email?: string } | null | undefined): boolean {
+  return !!user?.email && user.email.toLowerCase().endsWith(DEMO_EMAIL_DOMAIN);
+}

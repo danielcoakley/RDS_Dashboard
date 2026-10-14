@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api, type ComplianceReadiness } from '@/lib/api';
+import ReadinessCard from '@/components/app/ReadinessCard';
+import { fetchReadiness } from '@/components/app/readiness';
 import { Building2, ShieldCheck, Zap, ArrowRight, Plus, BarChart3 } from 'lucide-react';
 
 export default function DashboardPage() {
   const [sites, setSites] = useState<any[]>([]);
   const [score, setScore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [readiness, setReadiness] = useState<ComplianceReadiness | null>(null);
+  const [readinessError, setReadinessError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([api.listSites(), api.complianceScore().catch(() => null)])
@@ -17,6 +21,7 @@ export default function DashboardPage() {
         setScore(sc);
       })
       .finally(() => setLoading(false));
+    fetchReadiness().then(setReadiness).catch((e: Error) => setReadinessError(e.message));
   }, []);
 
   if (loading) return <div className="text-ink-400">Loading...</div>;
@@ -25,7 +30,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Dashboard</h1>
           <p className="text-sm text-ink-500">Overview of your energy management performance</p>
@@ -33,6 +38,11 @@ export default function DashboardPage() {
         <Link href="/sites" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
           <Plus className="h-4 w-4" /> Add Site
         </Link>
+      </div>
+
+      {/* Audit readiness */}
+      <div className="mb-6">
+        <ReadinessCard data={readiness} error={readinessError} />
       </div>
 
       {/* KPI Cards */}

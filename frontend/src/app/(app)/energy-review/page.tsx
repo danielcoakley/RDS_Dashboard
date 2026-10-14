@@ -176,7 +176,9 @@ export default function EnergyReviewPage() {
   );
 }
 
-function ReviewField({ label, value, onChange, placeholder }: any) {
+function ReviewField({ label, value, onChange, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-ink-700">{label}</label>
