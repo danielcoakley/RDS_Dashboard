@@ -42,6 +42,12 @@ docker compose -f docker-compose.base44.yml up -d
 1. Simple: `date,meter,consumption`
 2. Original RDS: `Metered Sector, Utility, Units, Period, [date columns DD/MM/YYYY]`
 
+## Onboarding & smart upload
+- Signup redirects to `/onboarding` (standalone route, outside the `(app)` shell); it bounces to `/dashboard` if the org already has sites.
+- `organizations.energy_cost_per_kwh` is added lazily by `routers/sites.py` (`ALTER TABLE ... IF NOT EXISTS`) because tables are auto-created, not migrated.
+- Smart upload endpoints: `GET /api/data/template`, `POST /api/data/preview/{site}` (column detection + quality report), `POST /api/data/import/{site}` (mapped import), `POST /api/data/sample/{site}` (2y synthetic data). Helpers in `routers/data_smart.py`.
+- Build check without clobbering the dev `.next`: copy `/app` to `/tmp/b` inside the frontend container and run `npx next build` there.
+
 ## Verifying the app
 - `curl http://localhost:3000/api/health` → `{"status":"ok"}`
 - Create account via `/signup`, then navigate to `/dashboard`

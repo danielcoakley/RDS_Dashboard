@@ -4,50 +4,43 @@ import { useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAnalysis } from '@/lib/analysis';
-import { Upload, FileText, CheckCircle2, ArrowLeft, CloudSun, Tags } from 'lucide-react';
+import { FileText, CheckCircle2, ArrowLeft, Tags, Sparkles } from 'lucide-react';
+import SmartEnergyUpload from './SmartEnergyUpload';
 
 export default function UploadPage() {
   const params = useParams();
   const router = useRouter();
   const siteId = Number(params.id);
-  const [file, setFile] = useState<File | null>(null);
   const [seuFile, setSeuFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<any>(null);
   const [seuResult, setSeuResult] = useState<any>(null);
   const [error, setError] = useState('');
-  const [dragOver, setDragOver] = useState(false);
   const [seuDragOver, setSeuDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [sampleResult, setSampleResult] = useState('');
   const seuInputRef = useRef<HTMLInputElement>(null);
   const { selectSite, invalidate } = useAnalysis();
 
-  const handleFile = (f: File) => {
-    setFile(f);
-    setResult(null);
+  // Make this the active analysis site and (re)run analysis with the new data
+  const refreshAnalysis = () => { selectSite(siteId); invalidate(siteId); };
+
+  const handleSample = async () => {
+    setSampleLoading(true);
     setError('');
+    try {
+      const res: any = await api.loadSampleData(siteId);
+      setSampleResult(res.message);
+      refreshAnalysis();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSampleLoading(false);
+    }
   };
 
   const handleSeuFile = (f: File) => {
     setSeuFile(f);
     setSeuResult(null);
-  };
-
-  const handleUpload = async () => {
-    if (!file) return;
-    setUploading(true);
-    setError('');
-    try {
-      const res = await api.uploadData(siteId, file);
-      setResult(res);
-      // Make this the active analysis site and (re)run analysis with the new data
-      selectSite(siteId);
-      invalidate(siteId);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleSeuUpload = async () => {
@@ -73,57 +66,20 @@ export default function UploadPage() {
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
       <h1 className="mb-2 text-2xl font-bold text-ink-900">Upload Energy Data</h1>
-      <p className="mb-8 text-sm text-ink-500">Upload a CSV file with your energy consumption data. Weather data (HDD/CDD) is fetched automatically after upload.</p>
+      <p className="mb-8 text-sm text-ink-500">Upload a CSV or Excel file with your energy consumption data. Review the column mapping and data quality before importing. Weather data (HDD/CDD) is fetched automatically after upload.</p>
 
-      {/* Drop zone */}
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
-        onClick={() => inputRef.current?.click()}
-        className={`cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition ${
-          dragOver ? 'border-brand-400 bg-brand-50' : 'border-ink-200 bg-white hover:border-brand-300'
-        }`}
-      >
-        <input ref={inputRef} type="file" accept=".csv" className="hidden"
-          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-        {file ? (
-          <div className="flex flex-col items-center gap-2">
-            <FileText className="h-10 w-10 text-brand-600" />
-            <p className="font-medium text-ink-900">{file.name}</p>
-            <p className="text-xs text-ink-400">{(file.size / 1024).toFixed(1)} KB</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <Upload className="h-10 w-10 text-ink-300" />
-            <p className="font-medium text-ink-700">Drop your CSV here or click to browse</p>
-            <p className="text-xs text-ink-400">Supports both simple (date, meter, consumption) and original RDS formats</p>
-          </div>
-        )}
-      </div>
+      <SmartEnergyUpload siteId={siteId} onImported={refreshAnalysis} />
 
-      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-
-      {result && (
-        <div className="mt-4 flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 p-4">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand-600" />
-          <div>
-            <p className="font-medium text-brand-800">{result.message}</p>
-            <p className="text-sm text-brand-600">{result.meters_created} new meters created</p>
-            <div className="mt-2 flex items-center gap-1.5 text-sm text-brand-600">
-              <CloudSun className="h-4 w-4" /> Weather data auto-fetched for the uploaded date range
-            </div>
-          </div>
-        </div>
-      )}
-
-      {file && (
-        <button onClick={handleUpload} disabled={uploading}
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
-          <Upload className="h-4 w-4" />
-          {uploading ? 'Uploading...' : 'Upload & Process'}
+      <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-ink-100 bg-white p-4">
+        <Sparkles className="h-5 w-5 text-brand-600" />
+        <p className="flex-1 text-sm text-ink-600">No data handy? Load 2 years of realistic synthetic daily readings for this site's meters.</p>
+        <button onClick={handleSample} disabled={sampleLoading}
+          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50">
+          {sampleLoading ? 'Loading sample data…' : 'Use sample data'}
         </button>
-      )}
+      </div>
+      {sampleResult && <p className="mt-2 text-sm text-brand-700">{sampleResult}</p>}
+      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
       {/* SEU Mapping Upload */}
       <div className="mt-10 border-t border-ink-100 pt-8">

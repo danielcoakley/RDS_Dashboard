@@ -52,7 +52,7 @@ export default function SEUAnalysisPage() {
                   node: {
                     pad: 20, thickness: 24,
                     label: sankey.labels,
-                    color: ['#888', '#ff9933', '#3399ff'] + Array(sankey.labels.length - 3).fill('#ccc'),
+                    color: ['#888', '#ff9933', '#3399ff'].concat(Array(Math.max(sankey.labels.length - 3, 0)).fill('#ccc')),
                   },
                   link: {
                     source: sankey.sources, target: sankey.targets, value: sankey.values,

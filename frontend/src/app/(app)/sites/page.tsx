@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Plus, Building2, ArrowRight, X } from 'lucide-react';
+import { Plus, Building2, ArrowRight, X, Sparkles } from 'lucide-react';
 
 export default function SitesPage() {
   const [sites, setSites] = useState<any[]>([]);
@@ -49,7 +49,18 @@ export default function SitesPage() {
       {sites.length === 0 ? (
         <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center">
           <Building2 className="mx-auto mb-3 h-10 w-10 text-ink-300" />
-          <p className="text-ink-500">No sites yet. Create your first site to begin.</p>
+          <p className="font-medium text-ink-700">No sites yet</p>
+          <p className="mt-1 text-sm text-ink-500">Set up your first site in a few guided steps, or create one directly.</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Link href="/onboarding"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+              <Sparkles className="h-4 w-4" /> Start guided setup
+            </Link>
+            <button onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50">
+              <Plus className="h-4 w-4" /> Create site
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -59,7 +70,7 @@ export default function SitesPage() {
               <h3 className="font-semibold text-ink-900 group-hover:text-brand-600">{site.name}</h3>
               <p className="mt-1 text-sm text-ink-500">{site.address || 'No address set'}</p>
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm text-ink-400">{site.meter_count} meters</span>
+                <span className="text-sm text-ink-400">{site.meter_count ? `${site.meter_count} meters` : 'No meters yet — add some'}</span>
                 <ArrowRight className="h-4 w-4 text-ink-300 group-hover:text-brand-600" />
               </div>
             </Link>

@@ -5,14 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAnalysis } from '@/lib/analysis';
+import { SEU_CATEGORIES } from '@/lib/seu';
 import { Plus, Upload, CloudSun, Trash2, ArrowLeft, Zap, FileText, Database, CalendarRange, CheckCircle2, Activity } from 'lucide-react';
 
-const SEU_CATEGORIES = [
-  'Boiler', 'AHU', 'Catering',
-  'Lighting', 'AC / Refrigeration', 'Heater',
-  'Electric Vehicles', 'Solar', 'Mains',
-  'Other', 'Unknown',
-];
 
 export default function SiteDetailPage() {
   const params = useParams();
@@ -174,7 +169,10 @@ export default function SiteDetailPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-ink-400">No files uploaded yet. Use “Upload Data” to add energy data and SEU mappings.</p>
+              <p className="text-sm text-ink-400">
+                No files uploaded yet.{' '}
+                <Link href={`/sites/${siteId}/upload`} className="font-medium text-brand-600 hover:underline">Upload data or load sample data →</Link>
+              </p>
             )}
           </div>
         </div>
@@ -185,7 +183,18 @@ export default function SiteDetailPage() {
       {meters.length === 0 ? (
         <div className="rounded-xl border border-dashed border-ink-200 bg-white p-12 text-center">
           <Zap className="mx-auto mb-3 h-10 w-10 text-ink-300" />
-          <p className="text-ink-500">No meters yet. Add meters or upload energy data to create them automatically.</p>
+          <p className="font-medium text-ink-700">No meters yet</p>
+          <p className="mt-1 text-sm text-ink-500">Add meters manually, or upload energy data to create them automatically.</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <button onClick={() => setShowMeterForm(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+              <Plus className="h-4 w-4" /> Add meter
+            </button>
+            <Link href={`/sites/${siteId}/upload`}
+              className="inline-flex items-center gap-2 rounded-lg border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50">
+              <Upload className="h-4 w-4" /> Upload data
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-ink-100 bg-white">
