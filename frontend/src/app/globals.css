@@ -17,3 +17,17 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Marketing site helpers */
+html {
+  scroll-behavior: smooth;
+}
+
+.marketing-grid {
+  background-image:
+    linear-gradient(to right, rgba(130, 149, 176, 0.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(130, 149, 176, 0.18) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
