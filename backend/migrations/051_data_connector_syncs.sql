@@ -1,0 +1,120 @@
+ALTER TABLE organization_data_connectors ADD COLUMN last_sync_status TEXT CHECK (
+    last_sync_status IN ('succeeded', 'failed', 'skipped')
+);
+ALTER TABLE organization_data_connectors ADD COLUMN last_sync_error TEXT;
+
+CREATE TABLE organization_data_connector_syncs (
+    id TEXT PRIMARY KEY,
+    organization_id TEXT NOT NULL,
+    connector_id TEXT NOT NULL,
+    site_id TEXT NOT NULL,
+    source_category TEXT NOT NULL CHECK (
+        source_category IN ('energy', 'hdd', 'cdd', 'seu_mapping')
+    ),
+    status TEXT NOT NULL CHECK (
+        status IN ('succeeded', 'failed', 'skipped')
+    ),
+    upload_id TEXT,
+    records_processed INTEGER NOT NULL DEFAULT 0 CHECK (records_processed >= 0),
+    status_reason TEXT,
+    triggered_by_user_id TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    FOREIGN KEY (connector_id) REFERENCES organization_data_connectors(id) ON DELETE CASCADE,
+    FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE CASCADE,
+    FOREIGN KEY (upload_id) REFERENCES uploads(id) ON DELETE SET NULL,
+    FOREIGN KEY (triggered_by_user_id) REFERENCES users(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_data_connector_syncs_connector_created
+    ON organization_data_connector_syncs (organization_id, connector_id, created_at);
+
+CREATE INDEX idx_data_connector_syncs_upload
+    ON organization_data_connector_syncs (organization_id, upload_id);
+
+ALTER TABLE audit_events RENAME TO audit_events_old;
+
+CREATE TABLE audit_events (
+    id TEXT PRIMARY KEY,
+    organization_id TEXT NOT NULL,
+    actor_user_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (
+        action IN (
+            'upload_stored',
+            'run_started',
+            'run_succeeded',
+            'run_failed',
+            'report_created',
+            'report_accessed',
+            'report_retention_applied',
+            'report_comment_created',
+            'report_review_recorded',
+            'report_exported',
+            'report_evidence_exported',
+            'report_evidence_package_created',
+            'report_evidence_package_downloaded',
+            'report_approval_assigned',
+            'report_approval_updated',
+            'report_approval_policy_updated',
+            'report_branding_updated',
+            'report_evidence_template_updated',
+            'report_schedule_created',
+            'report_schedule_updated',
+            'report_schedule_delivered',
+            'report_schedule_failed',
+            'privacy_settings_updated',
+            'privacy_request_created',
+            'privacy_request_updated',
+            'pilot_readiness_updated',
+            'organization_updated',
+            'analysis_config_updated',
+            'data_connector_created',
+            'data_connector_updated',
+            'data_connector_sync_recorded',
+            'membership_role_updated',
+            'membership_removed',
+            'subscription_updated',
+            'billing_checkout_created',
+            'billing_portal_created',
+            'site_created',
+            'meter_created',
+            'invite_created',
+            'invite_accepted',
+            'invite_revoked'
+        )
+    ),
+    resource_type TEXT NOT NULL,
+    resource_id TEXT NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE RESTRICT
+);
+
+INSERT INTO audit_events (
+    id,
+    organization_id,
+    actor_user_id,
+    action,
+    resource_type,
+    resource_id,
+    metadata_json,
+    created_at
+)
+SELECT
+    id,
+    organization_id,
+    actor_user_id,
+    action,
+    resource_type,
+    resource_id,
+    metadata_json,
+    created_at
+FROM audit_events_old;
+
+DROP TABLE audit_events_old;
+
+CREATE INDEX idx_audit_events_organization_created ON audit_events (organization_id, created_at);
+CREATE INDEX idx_audit_events_resource ON audit_events (resource_type, resource_id);

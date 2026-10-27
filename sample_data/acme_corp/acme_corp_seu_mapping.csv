@@ -1,0 +1,109 @@
+Meter,SEU_Category
+EM034 Refrigeration Panel 03,AC / Refrigeration
+EM030 Process Cooling 02,AC / Refrigeration
+EM002 Cooling Plant 01,AC / Refrigeration
+EM032 Cooling Plant 03,AC / Refrigeration
+EM005 Refrigeration Panel 01,AC / Refrigeration
+EM012 Process Cooling 01,AC / Refrigeration
+EM007 Chiller Distribution 01,AC / Refrigeration
+EM036 Chiller Distribution 03,AC / Refrigeration
+EM019 Refrigeration Panel 02,AC / Refrigeration
+EM015 Cooling Controls 01,AC / Refrigeration
+EM023 Chiller Distribution 02,AC / Refrigeration
+EM031 Cooling Controls 02,AC / Refrigeration
+EM018 Cooling Plant 02,AC / Refrigeration
+EM018 Cold Store Services 03 Variant 2,AC / Refrigeration
+EM011 Air Conditioning Board 01,AC / Refrigeration
+EM028 Air Conditioning Board 02,AC / Refrigeration
+EM052 Cooling Condenser 03,AC / Refrigeration
+EM010 Cooling Condenser 01,AC / Refrigeration
+EM009 Cold Store Services 01,AC / Refrigeration
+EM025 Cooling Condenser 02,AC / Refrigeration
+EM024 Cold Store Services 02,AC / Refrigeration
+GM024 Extract Air System 01,AHU
+GM025 Roof Air Plant 01,AHU
+GM026 Fresh Air Unit 01,AHU
+EM044 Supply Air System 01,AHU
+EM041 Ventilation Plant 01,AHU
+EM014 Air Handling Unit 01,AHU
+GM002 Boiler House 01,Boiler
+GM003 Heating Plant 01,Boiler
+GM005 LTHW Boiler 01,Boiler
+GM007 Thermal Plant 01,Boiler
+GM008 Main Gas Header 01,Boiler
+GM009 Boiler House 02,Boiler
+GM010 Heating Plant 02,Boiler
+GM014 LTHW Boiler 02,Boiler
+GM016 Thermal Plant 02,Boiler
+GM020 Main Gas Header 02,Boiler
+GM021 Boiler House 03,Boiler
+GM022 Heating Plant 03,Boiler
+GM032 LTHW Boiler 03,Boiler
+GM034 Thermal Plant 03,Boiler
+GM035 Main Gas Header 03,Boiler
+GM036 Boiler House 04,Boiler
+GM037 Heating Plant 04,Boiler
+GM038 LTHW Boiler 04,Boiler
+GM039 Thermal Plant 04,Boiler
+GM004 Catering Kitchen 03,Catering
+GM006 Food Service Panel 03,Catering
+GM012 Kitchen Extract 03,Catering
+GM013 Servery Power 03,Catering
+GM015 Catering Gas 03,Catering
+GM017 Catering Kitchen 04,Catering
+GM018 Food Service Panel 04,Catering
+GM019 Kitchen Extract 04,Catering
+GM023 Servery Power 04,Catering
+GM017 Catering Gas 06 Variant 2,Catering
+GM027 Catering Kitchen 07,Catering
+GM028 Food Service Panel 07,Catering
+GM029 Kitchen Extract 07,Catering
+GM030 Servery Power 07,Catering
+GM031 Catering Gas 07,Catering
+GM001 Catering Kitchen 08 Variant 2,Catering
+GM033 Food Service Panel 08,Catering
+GM040 Kitchen Extract 08,Catering
+EM039 Food Service Panel 02,Catering
+EM047 Food Service Panel 06,Catering
+EM050 Servery Power 06,Catering
+EM004 Catering Kitchen 05 Variant 2,Catering
+EM004 Catering Kitchen 01,Catering
+EM043 Catering Gas 02,Catering
+EM043 Servery Power 05 Variant 2,Catering
+EM008 Kitchen Extract 01,Catering
+EM006 Kitchen Extract 05 Variant 2,Catering
+EM006 Food Service Panel 01,Catering
+EM042 Servery Power 08 Variant 3,Catering
+EM042 Servery Power 02,Catering
+EM049 Kitchen Extract 06,Catering
+EM040 Kitchen Extract 02,Catering
+GM001 Catering Kitchen 02,Catering
+EM020 Catering Gas 01,Catering
+EM020 Catering Gas 04 Variant 2,Catering
+EM017 Food Service Panel 05 Variant 2,Catering
+EM017 Servery Power 01,Catering
+EM045 Catering Gas 05,Catering
+EM046 Catering Kitchen 06,Catering
+EM051 EV Chargers 01,Electric Vehicles
+EM053 Fleet Charging 01,Electric Vehicles
+EM037 Space Heating Panel 01,Heater
+EM048 Emergency Lighting 01,Lighting
+EM016 Lighting Panel 01,Lighting
+EM001 Main Incoming Supply 01,Mains
+EM022 Primary Intake 01,Mains
+EM033 Main Site Meter 02,Mains
+EM039 Main Incoming Supply 03 Variant 4,Mains
+EM003 Main Site Meter 01,Mains
+EM037 Main Site Meter 03 Variant 2,Mains
+EM035 Primary Intake 02,Mains
+EM026 Utility Incomer 01,Mains
+EM026 Utility Incomer 02 Variant 2,Mains
+EM029 Main Incoming Supply 02,Mains
+EM039 Excluded Meter 01 Variant 2,Ignore
+EM039 Inactive Meter 01 Variant 3,Ignore
+GM011 Small Power 01,Other
+EM027 Distribution Board 01 Variant 2,Other
+EM027 Tenant Services 01,Other
+EM021 General Services 01,Other
+EM038 Auxiliary Load 01,Other
+EM013 Solar PV Array 01,Solar

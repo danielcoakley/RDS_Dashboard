@@ -4,9 +4,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from utils import preprocess_data, evaluate_meter_models, plot_monthly_comparison, add_percent_savings, style_summary_table
+from src.config_loader import load_client_config
+from src.data_standardisation import load_uploaded_data, standardise_meter_data
+from src.data_quality import clean_meter_data, detect_data_gaps, detect_outliers
+from src.reporting import calculate_consumption_summary, generate_iso_summary
+from src.enpi_model import build_baseline_model, calculate_enpi
+from pathlib import Path
 import time
 
 print("Starting Energy Baseline Dashboard...")
+
+ACME_DEMO_FILES = {
+    "Energy Data": Path("sample_data/acme_corp/acme_corp_energy_q4_2025.csv"),
+    "HDD Data": Path("sample_data/acme_corp/acme_corp_hdd_15_5c_q4_2025.csv"),
+    "CDD Data": Path("sample_data/acme_corp/acme_corp_cdd_15_5c_q4_2025.csv"),
+    "SEU Mapping": Path("sample_data/acme_corp/acme_corp_seu_mapping.csv"),
+}
+
+
+def read_csv_input(source, **kwargs):
+    if hasattr(source, "seek"):
+        source.seek(0)
+    return pd.read_csv(source, **kwargs)
 
 def format_delta(val):
     """Format the delta value with appropriate arrow and color."""
@@ -28,44 +47,76 @@ st.set_page_config(page_title="Energy Baseline Dashboard", layout="wide")
 with st.spinner('Loading the Energy Baseline Dashboard...'):
     time.sleep(2)  # Simulate loading time, adjust as needed
 
-st.title("📊 Energy Baseline Dashboard – RDS Site")
-
 # Sidebar organization
 with st.sidebar:
     st.header("⚙️ Settings")
+
+    query_params = getattr(st, "query_params", {})
+    demo_requested = query_params.get("demo") == "acme"
+    config_files = sorted([p.name for p in Path("config/clients").glob("*.yaml")])
+    default_config = (
+        "acme_corp.yaml"
+        if demo_requested and "acme_corp.yaml" in config_files
+        else "rds_client.yaml" if "rds_client.yaml" in config_files else (config_files[0] if config_files else None)
+    )
+    selected_config = st.selectbox("Client Config", options=config_files if config_files else ["<none>"], index=(config_files.index(default_config) if default_config in config_files else 0))
+    client_config = load_client_config(f"config/clients/{selected_config}") if config_files else None
+    use_demo_data = st.checkbox(
+        "Use Acme Corp demo data",
+        value=demo_requested,
+        disabled=not all(path.exists() for path in ACME_DEMO_FILES.values()),
+    )
     
     # File Upload Section
     st.subheader("📂 Required Files")
-    files = {
-        "Energy Data": st.file_uploader("Energy Data", type=["csv"], help="Upload energy consumption data"),
-        "HDD Data": st.file_uploader("HDD Data", type=["csv"], help="Upload Heating Degree Days data"),
-        "CDD Data": st.file_uploader("CDD Data", type=["csv"], help="Upload Cooling Degree Days data"),
-        "SEU Mapping": st.file_uploader("SEU Mapping", type=["csv"], help="Upload SEU mapping data for ISO 50001 compliance")
-    }
+    if use_demo_data:
+        files = ACME_DEMO_FILES
+        st.success("Acme Corp demo files loaded")
+    else:
+        files = {
+            "Energy Data": st.file_uploader("Energy Data", type=["csv"], help="Upload energy consumption data"),
+            "HDD Data": st.file_uploader("HDD Data", type=["csv"], help="Upload Heating Degree Days data"),
+            "CDD Data": st.file_uploader("CDD Data", type=["csv"], help="Upload Cooling Degree Days data"),
+            "SEU Mapping": st.file_uploader("SEU Mapping", type=["csv"], help="Upload SEU mapping data for ISO 50001 compliance")
+        }
+
+site_name = client_config.get("site", {}).get("name", "Selected Site") if client_config else "Selected Site"
+st.title(f"📊 Energy Baseline Dashboard – {site_name}")
 
 if all(files.values()):
     try:
         # Load and validate main data files
-        energy_df = pd.read_csv(files["Energy Data"], encoding="latin1")
-        hdd_df = pd.read_csv(files["HDD Data"])
-        cdd_df = pd.read_csv(files["CDD Data"])
+        energy_df = read_csv_input(files["Energy Data"], encoding="latin1")
+        hdd_df = read_csv_input(files["HDD Data"])
+        cdd_df = read_csv_input(files["CDD Data"])
         
         # Load and validate SEU mapping file
         try:
-            seu_mapping = pd.read_csv(files["SEU Mapping"])
+            seu_mapping = read_csv_input(files["SEU Mapping"])
             required_columns = ['Meter', 'SEU_Category']
             missing_columns = [col for col in required_columns if col not in seu_mapping.columns]
             if missing_columns:
                 st.error(f"⚠️ SEU mapping file is missing required columns: {', '.join(missing_columns)}")
                 st.stop()
-            seu_mapping.to_csv('seu_mapping.csv', index=False)
         except Exception as e:
             st.error(f"⚠️ Error loading SEU mapping file: {str(e)}")
             st.stop()
 
         st.success("✅ Files loaded successfully")
 
-        gas_df, elec_df = preprocess_data(energy_df, hdd_df, cdd_df)
+        standardised_df = pd.DataFrame()
+        if client_config:
+            configured_columns = {
+                meter["source_column"]
+                for meter in client_config.get("meters", [])
+                if meter.get("source_column")
+            }
+            available_columns = {str(column).strip().strip("'").strip('"') for column in energy_df.columns}
+            if configured_columns.issubset(available_columns):
+                standardised_df = standardise_meter_data(load_uploaded_data(files["Energy Data"]), client_config)
+                standardised_df = clean_meter_data(standardised_df, client_config)
+
+        gas_df, elec_df = preprocess_data(energy_df, hdd_df, cdd_df, seu_mapping_df=seu_mapping)
 
         # Determine available years dynamically from data
         available_years = sorted(set(gas_df['Year'].unique()) | set(elec_df['Year'].unique()))
@@ -95,6 +146,17 @@ if all(files.values()):
         tab1, tab2, tab3, tab4 = st.tabs(["📋 General Summary", "⚡ Electricity Analysis", "🔥 Gas Analysis", "🏗️ SEU Analysis"])
 
         with tab1:
+            if not standardised_df.empty:
+                st.subheader("🧱 Standardised Data Preview")
+                st.dataframe(standardised_df.head(20), use_container_width=True)
+                gaps_df = detect_data_gaps(standardised_df)
+                outliers_df = detect_outliers(standardised_df, client_config)
+                st.write(f"Data quality: {len(gaps_df)} gap(s), {len(outliers_df)} outlier row(s)")
+                st.dataframe(calculate_consumption_summary(standardised_df), use_container_width=True)
+                st.json(generate_iso_summary(standardised_df, client_config))
+                st.dataframe(calculate_enpi(standardised_df, client_config), use_container_width=True)
+                _ = build_baseline_model(standardised_df, config=client_config)
+
             # Get the model predictions for comparison
             gas_summary = evaluate_meter_models(gas_df, train_year=baseline_year, test_year=comparison_year)
             elec_summary = evaluate_meter_models(elec_df, train_year=baseline_year, test_year=comparison_year)
@@ -407,7 +469,7 @@ if all(files.values()):
 
             with st.expander("📘 Dashboard Guide", expanded=False):
                 st.markdown("""
-This dashboard provides a climate-normalized analysis of energy consumption at the RDS site.
+This dashboard provides a climate-normalized analysis of energy consumption at the selected site.
 
 **Tabs:**
 - **General Summary** (this page): High-level overview of total gas and electricity usage, comparing actual consumption against climate-normalized predictions.
@@ -526,12 +588,12 @@ This approach allows for fair, climate-normalized comparisons between years, acc
 
         with tab4:
             st.header("🏗️ SEU Group Analysis")
-            # Load SEU mapping for aggregation
+            # Reuse the uploaded/demo SEU mapping for aggregation.
             try:
-                seu_mapping = pd.read_csv('seu_mapping.csv')
-                seu_mapping['Meter'] = seu_mapping['Meter'].str.strip()
+                seu_mapping_for_tab = seu_mapping.copy()
+                seu_mapping_for_tab['Meter'] = seu_mapping_for_tab['Meter'].str.strip()
             except Exception as e:
-                st.error(f"⚠️ Could not load SEU mapping: {str(e)}")
+                st.error(f"⚠️ Could not prepare SEU mapping: {str(e)}")
                 st.stop()
 
             # Helper to aggregate summary by SEU
@@ -558,7 +620,7 @@ This approach allows for fair, climate-normalized comparisons between years, acc
             with seu_tab1:
                 st.subheader("Gas SEU Summary")
                 try:
-                    gas_seu_summary = aggregate_by_seu(gas_summary, seu_mapping)
+                    gas_seu_summary = aggregate_by_seu(gas_summary, seu_mapping_for_tab)
                     # Remove Baseline Days and Actual Days columns
                     gas_seu_summary = gas_seu_summary.drop(columns=['Baseline Days', 'Actual Days'], errors='ignore')
                     st.dataframe(style_summary_table(gas_seu_summary), use_container_width=True)
@@ -590,7 +652,7 @@ This approach allows for fair, climate-normalized comparisons between years, acc
                         actual_monthly = actual.groupby(actual['Date'].dt.month)['Consumption'].sum().reindex(x, fill_value=0)
                         ax.bar(x + bar_width/2, actual_monthly.values, width=bar_width, alpha=0.7, label='Actual')
                         pred_monthly = np.zeros(12)
-                        for meter in seu_mapping[seu_mapping['SEU_Category'] == category]['Meter']:
+                        for meter in seu_mapping_for_tab[seu_mapping_for_tab['SEU_Category'] == category]['Meter']:
                             meter_data = gas_df[(gas_df['Meter'] == meter) & (gas_df['Year'].isin([baseline_year, comparison_year]))].copy()
                             if meter_data.empty:
                                 continue
@@ -625,7 +687,7 @@ This approach allows for fair, climate-normalized comparisons between years, acc
             with seu_tab2:
                 st.subheader("Electricity SEU Summary")
                 try:
-                    elec_seu_summary = aggregate_by_seu(elec_summary, seu_mapping)
+                    elec_seu_summary = aggregate_by_seu(elec_summary, seu_mapping_for_tab)
                     # Remove Baseline Days and Actual Days columns
                     elec_seu_summary = elec_seu_summary.drop(columns=['Baseline Days', 'Actual Days'], errors='ignore')
                     st.dataframe(style_summary_table(elec_seu_summary), use_container_width=True)
@@ -657,7 +719,7 @@ This approach allows for fair, climate-normalized comparisons between years, acc
                         actual_monthly = actual.groupby(actual['Date'].dt.month)['Consumption'].sum().reindex(x, fill_value=0)
                         ax.bar(x + bar_width/2, actual_monthly.values, width=bar_width, alpha=0.7, label='Actual')
                         pred_monthly = np.zeros(12)
-                        for meter in seu_mapping[seu_mapping['SEU_Category'] == category]['Meter']:
+                        for meter in seu_mapping_for_tab[seu_mapping_for_tab['SEU_Category'] == category]['Meter']:
                             meter_data = elec_df[(elec_df['Meter'] == meter) & (elec_df['Year'].isin([baseline_year, comparison_year]))].copy()
                             if meter_data.empty:
                                 continue

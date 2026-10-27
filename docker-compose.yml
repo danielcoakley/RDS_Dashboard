@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: rds
+      POSTGRES_USER: rds
+      POSTGRES_PASSWORD: rds_local_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rds -d rds"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.example
+    environment:
+      SAAS_DATABASE_URL: postgresql://rds:rds_local_password@db:5432/rds
+      NEXT_PUBLIC_API_BASE_URL: http://api:8000
+    volumes:
+      - artifact-data:/app/.saas-artifacts
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.example
+    environment:
+      SAAS_DATABASE_URL: postgresql://rds:rds_local_password@db:5432/rds
+    volumes:
+      - artifact-data:/app/.saas-artifacts
+    command: ["python", "-m", "backend.worker_app"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    env_file:
+      - .env.example
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://api:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  artifact-data:
+  postgres-data:

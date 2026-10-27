@@ -35,7 +35,7 @@ def deduplicate_meters(df):
     result = result.drop('Meter_ID', axis=1)
     return result
 
-def preprocess_data(energy_df, hdd_df, cdd_df):
+def preprocess_data(energy_df, hdd_df, cdd_df, seu_mapping_df=None, seu_mapping_path=None):
     # Work on a copy and normalise column names (handle BOM, quoted headers, spaces, etc.)
     energy_df = energy_df.copy()
     normalised_cols = []
@@ -67,13 +67,13 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
     # HDD and CDD cleaning
     hdd_clean = hdd_df.iloc[4:].copy()
     hdd_clean.columns = ['Date', 'HDD']
-    hdd_clean['Date'] = pd.to_datetime(hdd_clean['Date'], errors='coerce')
+    hdd_clean['Date'] = pd.to_datetime(hdd_clean['Date'], format='%d/%m/%Y', errors='coerce')
     hdd_clean['HDD'] = pd.to_numeric(hdd_clean['HDD'], errors='coerce')
     hdd_clean.dropna(inplace=True)
 
     cdd_clean = cdd_df.iloc[4:].copy()
     cdd_clean.columns = ['Date', 'CDD']
-    cdd_clean['Date'] = pd.to_datetime(cdd_clean['Date'], errors='coerce')
+    cdd_clean['Date'] = pd.to_datetime(cdd_clean['Date'], format='%d/%m/%Y', errors='coerce')
     cdd_clean['CDD'] = pd.to_numeric(cdd_clean['CDD'], errors='coerce')
     cdd_clean.dropna(inplace=True)
 
@@ -135,35 +135,47 @@ def preprocess_data(energy_df, hdd_df, cdd_df):
     elec_df = elec_df.groupby(['Meter', 'Date'])['Consumption'].sum().reset_index()
     elec_df = elec_df.merge(cdd_clean, on='Date', how='left')
 
-    # Merge SEU metadata into both dataframes
-    try:
-        seu_mapping = pd.read_csv('seu_mapping.csv')
+    # Merge SEU metadata only from an explicit tenant upload/path. The SaaS path must
+    # not depend on a shared mutable file in the repo root.
+    for df in [gas_df, elec_df]:
+        df['SEU_Category'] = 'Unknown'
+
+    if seu_mapping_df is not None or seu_mapping_path is not None:
+        seu_mapping = seu_mapping_df.copy() if seu_mapping_df is not None else pd.read_csv(seu_mapping_path)
+        required_mapping_columns = {'Meter', 'SEU_Category'}
+        missing_mapping_columns = required_mapping_columns.difference(seu_mapping.columns)
+        if missing_mapping_columns:
+            raise ValueError(
+                "SEU mapping is missing required columns: "
+                + ", ".join(sorted(missing_mapping_columns))
+            )
         # Clean up meter names in SEU mapping to match energy data
         seu_mapping['Meter'] = seu_mapping['Meter'].str.strip()
-        
+
         # Get list of meters to ignore
         ignored_meters = seu_mapping[seu_mapping['SEU_Category'] == 'Ignore']['Meter'].tolist()
-        
+
         # Filter out ignored meters from gas and electricity data
         gas_df = gas_df[~gas_df['Meter'].isin(ignored_meters)]
         elec_df = elec_df[~elec_df['Meter'].isin(ignored_meters)]
-        
+
         # Filter out meters marked as "Ignore" from SEU mapping
         seu_mapping = seu_mapping[seu_mapping['SEU_Category'] != 'Ignore']
-        
+
+        gas_df = gas_df.drop(columns=['SEU_Category'])
+        elec_df = elec_df.drop(columns=['SEU_Category'])
+
         # Merge with gas data
         gas_df = gas_df.merge(seu_mapping, on='Meter', how='left')
-        
+
         # Merge with electricity data
         elec_df = elec_df.merge(seu_mapping, on='Meter', how='left')
-        
-        # Always ensure SEU_Category exists and is filled
-        for df in [gas_df, elec_df]:
-            if 'SEU_Category' not in df.columns:
-                df['SEU_Category'] = 'Unknown'
-            df['SEU_Category'] = df['SEU_Category'].fillna('Unknown')
-    except Exception as e:
-        print(f"Warning: Could not load SEU mapping: {str(e)}")
+
+    # Always ensure SEU_Category exists and is filled
+    for df in [gas_df, elec_df]:
+        if 'SEU_Category' not in df.columns:
+            df['SEU_Category'] = 'Unknown'
+        df['SEU_Category'] = df['SEU_Category'].fillna('Unknown')
 
     for df in [gas_df, elec_df]:
         df['Year'] = df['Date'].dt.year
